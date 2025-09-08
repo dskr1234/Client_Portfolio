@@ -9,7 +9,7 @@ export const profile = {
     phone: "937-608-2488",
     linkedin: "https://www.linkedin.com/in/upendradommaraju/",
     leetcode: "https://leetcode.com/u/Uppi_007/",
-    website: "https://www.recruitemee.com"
+    github: "https://github.com/uppi07"
   }
 }
 
