@@ -3,8 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": { "node": "20.x" },
   "scripts": {
-    "dev": "node --watch src/index.js",
+    "build": "echo \"no build step for API\"",
     "start": "node src/index.js"
   },
   "dependencies": {
