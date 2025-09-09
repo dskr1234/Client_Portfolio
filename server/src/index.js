@@ -1,4 +1,3 @@
-// server/src/index.js
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -10,27 +9,58 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-/* ---------- CORS ---------- */
-const ALLOWED_ORIGINS = [
-  "http://localhost:5173", // vite dev
-  "http://localhost:5174", // vite preview
-  process.env.FRONTEND_ORIGIN, // e.g. https://your-vercel-app.vercel.app
-].filter(Boolean);
+/* ---------------- CORS ---------------- */
+const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN || "").trim(); // e.g. https://client-portfolio-olive-chi.vercel.app
+const PREVIEW_PREFIX   = (process.env.FRONTEND_PREVIEW_PREFIX || "").trim(); // e.g. client-portfolio-olive-chi
+const EXTRA_ORIGINS    = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map(s => s.trim())
+  .filter(Boolean); // e.g. http://localhost:5173,http://localhost:5174
 
-app.use(
-  cors({
-    origin(origin, cb) {
-      if (!origin) return cb(null, true); // SSR / curl / server-to-server
-      cb(null, ALLOWED_ORIGINS.includes(origin));
-    },
-  })
-);
+const normalize = (u) => {
+  if (!u) return "";
+  try {
+    const { protocol, host } = new URL(u);
+    return `${protocol}//${host}`; // strip any path/trailing slash
+  } catch {
+    return u.replace(/\/+$/, ""); // best-effort
+  }
+};
 
-/* ---------- Health ---------- */
+const allowOrigin = (origin) => {
+  if (!origin) return true;                         // SSR/cURL/health checks
+  const o = normalize(origin);
+  if (o === normalize(FRONTEND_ORIGIN)) return true;
+  if (EXTRA_ORIGINS.map(normalize).includes(o)) return true;
+
+  // allow this app's Vercel previews: <prefix>-git-*-*.vercel.app
+  try {
+    const { hostname } = new URL(origin);
+    if (PREVIEW_PREFIX && hostname.endsWith(".vercel.app") && hostname.startsWith(PREVIEW_PREFIX)) {
+      return true;
+    }
+  } catch {}
+
+  return false;
+};
+
+const corsOptions = {
+  origin(origin, cb) {
+    cb(null, allowOrigin(origin));
+  },
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  credentials: false,
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // explicit preflight
+
+/* ---------------- Health ---------------- */
 app.get("/", (_req, res) => res.json({ service: "portfolio-api", ok: true }));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-/* ---------- Contact ---------- */
+/* ---------------- Contact ---------------- */
 const ContactSchema = z.object({
   name: z.string().min(2).max(80),
   email: z.string().email(),
@@ -56,26 +86,19 @@ app.post("/api/contact", async (req, res) => {
       `,
     });
 
-    return res.json({ ok: true });
+    res.json({ ok: true });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return res.status(400).json({ error: "Validation failed", issues: err.issues });
     }
     console.error("MAIL ERROR:", err);
-    return res.status(500).json({ error: err.message || "Server error" });
+    res.status(500).json({ error: err.message || "Server error" });
   }
 });
 
-/* ---------- LeetCode API ---------- */
-/**
- * GET /api/leetcode?username=<leetcode_name>
- * Returns:
- *   - totals { solved, easy, medium, hard }
- *   - denoms { all, easy, medium, hard }
- *   - series: last 72 days [{ ts, date, count }]
- *   - yearSubmissions, activeDays, maxStreak
- *   - maxDaily, maxDailyDate
- */
+/* ---------------- LeetCode API ----------------
+   GET /api/leetcode?username=<leetcode_name>
+------------------------------------------------ */
 app.get("/api/leetcode", async (req, res) => {
   try {
     const username = (req.query.username || "").trim();
@@ -100,7 +123,7 @@ app.get("/api/leetcode", async (req, res) => {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        referer: "https://leetcode.com",
+        "referer": "https://leetcode.com",
         "user-agent": "Mozilla/5.0",
       },
       body: JSON.stringify({ query, variables: { username, year } }),
@@ -114,10 +137,10 @@ app.get("/api/leetcode", async (req, res) => {
 
     const matched = json?.data?.matchedUser || {};
     const stats = matched?.submitStatsGlobal?.acSubmissionNum || [];
-    const cal = matched?.userCalendar || {};
+    const cal   = matched?.userCalendar || {};
     const calendarStr = cal?.submissionCalendar || "{}";
 
-    /* denominators (total problems) */
+    // denominators (total problems)
     const allCounts = json?.data?.allQuestionsCount || [];
     const denom = (diff) =>
       allCounts.find((x) => (x.difficulty || "").toLowerCase() === diff)?.count || 0;
@@ -129,7 +152,7 @@ app.get("/api/leetcode", async (req, res) => {
       hard: denom("hard"),
     };
 
-    /* totals solved */
+    // solved totals
     const get = (diff) =>
       stats.find((x) => (x.difficulty || "").toLowerCase() === diff)?.count || 0;
 
@@ -140,21 +163,20 @@ app.get("/api/leetcode", async (req, res) => {
       hard: get("hard"),
     };
 
-    /* ---------- calendar -> series (UTC-midnight aligned) ---------- */
-    // submissionCalendar is keyed by epoch seconds at UTC 00:00:00
-    const calObj = JSON.parse(calendarStr);
-
-    // Normalize to UTC-day buckets (defensive)
+    // ---- calendar -> series (UTC midnight aligned) ----
+    const calObj = JSON.parse(calendarStr); // { "<epochSecUTC>": count }
     const DAY = 86400; // seconds
+
+    // normalize to UTC day keys
     const norm = new Map();
     for (const [k, v] of Object.entries(calObj)) {
       const sec = Number(k) || 0;
       const cnt = Number(v) || 0;
-      const dayUTC = Math.floor(sec / DAY) * DAY; // clamp to 00:00:00 UTC
+      const dayUTC = Math.floor(sec / DAY) * DAY;
       norm.set(dayUTC, (norm.get(dayUTC) || 0) + cnt);
     }
 
-    // Build contiguous 72-day series ending today (lookup by UTC midnight)
+    // contiguous 72-day series ending today (local), looking up by UTC midnight
     const endLocal = new Date(); endLocal.setHours(0, 0, 0, 0);
     const series72 = [];
     for (let i = 71; i >= 0; i--) {
@@ -164,7 +186,7 @@ app.get("/api/leetcode", async (req, res) => {
       series72.push({ ts: d.getTime(), date: d.toISOString().slice(0, 10), count });
     }
 
-    // Year aggregates from normalized UTC days
+    // yearly aggregates
     const entries = Array.from(norm.entries())
       .map(([sec, v]) => ({ sec: Number(sec), v: Number(v) || 0 }))
       .sort((a, b) => a.sec - b.sec);
@@ -172,12 +194,12 @@ app.get("/api/leetcode", async (req, res) => {
     const yearSubmissions = entries.reduce((s, d) => s + d.v, 0);
     const activeDays = entries.filter((d) => d.v > 0).length;
 
-    // Robust max streak: walk day-by-day from Jan 1 (UTC) to today (UTC)
+    // robust max streak across the year (UTC)
     let maxStreak = 0, cur = 0;
     const startUTC = Math.floor(Date.UTC(year, 0, 1) / 1000);
-    const todayUTC = Math.floor(
-      Date.UTC(endLocal.getFullYear(), endLocal.getMonth(), endLocal.getDate()) / 1000
-    );
+    const todayUTC = Math.floor(Date.UTC(
+      endLocal.getFullYear(), endLocal.getMonth(), endLocal.getDate()
+    ) / 1000);
     for (let s = startUTC; s <= todayUTC; s += DAY) {
       if ((norm.get(s) || 0) > 0) { cur += 1; if (cur > maxStreak) maxStreak = cur; }
       else cur = 0;
@@ -186,7 +208,7 @@ app.get("/api/leetcode", async (req, res) => {
     const maxDaily = series72.reduce((m, d) => Math.max(m, d.count), 0);
     const maxDailyDate = series72.find((d) => d.count === maxDaily)?.date || null;
 
-    return res.json({
+    res.json({
       totals,
       denoms,
       yearSubmissions,
@@ -199,10 +221,10 @@ app.get("/api/leetcode", async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "failed to fetch" });
+    res.status(500).json({ error: "failed to fetch" });
   }
 });
 
-/* ---------- Start ---------- */
+/* ---------------- Start ---------------- */
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`API running on :${PORT}`));
