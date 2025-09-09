@@ -1,33 +1,37 @@
-import React, { useEffect, useState } from "react"
-import { Sun, Moon } from "lucide-react"
+import React, { useEffect, useState } from "react";
+import { Sun, Moon } from "lucide-react";
+
+const systemPrefersDark = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(prefers-color-scheme: dark)").matches;
 
 export default function ThemeToggle() {
   const [dark, setDark] = useState(() => {
-    if (typeof window === "undefined") return true // default dark on first load
-    const stored = localStorage.getItem("theme")
-    if (stored) return stored === "dark"
-    return true
-  })
+    if (typeof window === "undefined") return true;
+    const stored = localStorage.getItem("theme");
+    return stored ? stored === "dark" : systemPrefersDark();
+  });
 
   useEffect(() => {
-    const root = document.documentElement
-    if (dark) {
-      root.classList.add("dark")
-      localStorage.setItem("theme", "dark")
-    } else {
-      root.classList.remove("dark")
-      localStorage.setItem("theme", "light")
-    }
-  }, [dark])
+    const root = document.documentElement;
+    root.classList.toggle("dark", dark);
+    root.setAttribute("data-theme", dark ? "dark" : "light");
+    root.style.colorScheme = dark ? "dark" : "light";
+    localStorage.setItem("theme", dark ? "dark" : "light");
+  }, [dark]);
+
+  const handleClick = (e) => {
+    e.stopPropagation();
+    setDark((d) => !d);
+  };
 
   return (
     <button
       aria-label="Toggle theme"
-      onClick={() => setDark(d => !d)}
-      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-black/5 dark:border-white/10 hover:scale-[1.02] transition text-[var(--text)]/80"
+      onClick={handleClick}
+      className="grid place-items-center w-8 h-8 rounded-lg bg-glass-soft dark:bg-white/10 text-theme dark:text-white/90 hover:bg-[color-mix(in_oklab,var(--text)_10%,transparent)] transition"
     >
-      {dark ? <Sun size={16}/> : <Moon size={16} />}
-      <span className="text-sm">{dark ? "Light" : "Dark"}</span>
+      {dark ? <Sun size={16} /> : <Moon size={16} />}
     </button>
-  )
+  );
 }

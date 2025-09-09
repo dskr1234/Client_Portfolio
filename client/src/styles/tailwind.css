@@ -2,118 +2,125 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ------------------------------------------
-   THEME VARIABLES (high-contrast, polished)
-------------------------------------------- */
-:root {
-  --bg: #f7f8fb;            /* page */
-  --text: #111827;          /* main text */
-  --text-muted: #374151;    /* muted text */
-  --bg-2: #ffffff;          /* section panels */
-  --bg-3: #f3f4f6;          /* cards */
-  --muted: #6b7280;
-  --border: rgba(17,24,39,.12);
-  --ring: rgba(99,102,241,.25); /* indigo glow */
+/* =========================
+   THEME TOKENS
+   - Light is default
+   - Dark overrides via .dark
+========================= */
+:root{
+  /* light */
+  --bg:#f7f8fb;
+  --text:#111827;
+  --text-muted:#374151;
+  --bg-2:#ffffff;
+  --bg-3:#f3f4f6;
+  --border:rgba(17,24,39,.12);
+  --ring:rgba(99,102,241,.25);
 }
-.dark {
-  --bg: #0f1116;
-  --text: #ffffff;
-  --text-muted: #d1d5db;
-  --bg-2: #141823;
-  --bg-3: #191e2b;
-  --muted: #9ca3af;
-  --border: rgba(255,255,255,.10);
-  --ring: rgba(139,92,246,.35);
-}
-
-/* global feel */
-html{ scroll-behavior:smooth; }
-body{
-  color:var(--text);
-  background:var(--bg);
-  font-feature-settings:"ss01" on;
-  transition: background-color .25s, color .25s;
+.dark{
+  /* dark */
+  --bg:#0f1116;
+  --text:#ffffff;
+  --text-muted:#d1d5db;
+  --bg-2:#141823;
+  --bg-3:#191e2b;
+  --border:rgba(255,255,255,.10);
+  --ring:rgba(139,92,246,.35);
 }
 
-/* layout helpers */
-.container-px { @apply px-4 md:px-6 lg:px-10; }
-.display { @apply text-4xl md:text-6xl font-extrabold tracking-tight; }
-section[id]{ scroll-margin-top: 88px; }
-
-/* pills / tags (contrast-safe) */
-.pill{
-  @apply rounded-full px-4 py-2 text-sm transition-colors;
-  border:1px solid var(--border);
-  background:var(--bg-3);
-  color:var(--text-muted);
-}
-.pill:hover{
-  background: color-mix(in oklab, var(--bg-3) 85%, var(--text) 15%);
-  color: var(--text);
+@layer base{
+  html{ scroll-behavior:smooth; }
+  body{
+    color:var(--text);
+    background:var(--bg);
+    font-feature-settings:"ss01" on;
+    transition: color .25s, background-color .25s;
+  }
+  section[id]{ scroll-margin-top:88px; }
 }
 
-/* surfaces */
-.soft   { background:var(--bg);   color:var(--text); }
-.soft-2 { background:var(--bg-2); color: color-mix(in oklab, var(--text) 92%, transparent); }
-.soft-3 { background:var(--bg-3); }
+/* =========================
+   COMPONENTS
+========================= */
+@layer components{
+  .soft   { background:var(--bg);   color:var(--text); }
+  .soft-2 { background:var(--bg-2); color: color-mix(in oklab, var(--text) 92%, transparent); }
+  .soft-3 { background:var(--bg-3); }
 
-/* neo shadows */
+  /* Glass card */
+  .card-neo{
+    background:linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--bg-2) 96%, white 4%),
+      color-mix(in oklab, var(--bg-2) 98%, white 2%)
+    );
+    border:1px solid var(--border);
+    box-shadow:
+      0 20px 60px rgba(0,0,0,.22),
+      inset 0 1px 0 rgba(255,255,255,.06);
+  }
+
+  .pill-neo{
+    background:linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--bg-3) 94%, white 6%),
+      color-mix(in oklab, var(--bg-3) 98%, white 2%)
+    );
+    border:1px solid var(--border);
+    box-shadow: 0 6px 20px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.05);
+  }
+
+  /* Timeline helpers */
+  .timeline-rail{ @apply pointer-events-none absolute left-3 top-0 bottom-0 w-[2px] rounded-full; }
+  .timeline-rail--exp{ background:linear-gradient(to bottom, rgba(139,92,246,.7), rgba(236,72,153,.35), transparent); }
+  .timeline-rail--edu{ background:linear-gradient(to bottom, rgba(99,102,241,.7), rgba(56,189,248,.35), transparent); }
+  .timeline-dot{ @apply absolute -left-[17px] top-6 w-3 h-3 rounded-full; }
+  .timeline-dot--exp{ background:rgb(139,92,246); box-shadow:0 0 0 4px rgba(139,92,246,.25); }
+  .timeline-dot--edu{ background:rgb(56,189,248); box-shadow:0 0 0 4px rgba(56,189,248,.25); }
+}
+
+/* =========================
+   UTILITIES & 3D HELPERS
+========================= */
+@layer utilities{
+  .backdrop-blur-sm{ backdrop-filter: blur(6px); }
+  .perspective-1200{ perspective:1200px; }
+  .preserve-3d{ transform-style: preserve-3d; }
+  .will-change-transform{ will-change: transform; }
+
+  /* Cursor hotspot overlay for 3D cards */
+  .shine{
+    position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
+    background:
+      radial-gradient(160px 120px at var(--mx,50%) var(--my,40%), rgba(255,255,255,.22), rgba(255,255,255,0) 65%),
+      radial-gradient(400px 240px at 80% -20%, var(--ring), transparent 60%);
+    mix-blend-mode: screen;
+  }
+
+  @keyframes spin { from { transform: rotate(0) } to { transform: rotate(360deg) } }
+  .animate-spin-slow{ animation: spin 12s linear infinite; }
+}
+
+/* Optional shadows */
 .neo{
   box-shadow:
     12px 12px 28px rgba(0,0,0,.18),
-    -10px -10px 26px rgba(255,255,255,.06),
-    inset 0 0 0 rgba(0,0,0,0);
+    -10px -10px 26px rgba(255,255,255,.06);
 }
 .neo-inset{
   box-shadow:
     inset 10px 10px 24px rgba(0,0,0,.20),
     inset -8px -8px 20px rgba(255,255,255,.05);
 }
-.glow{ box-shadow:0 10px 34px var(--ring); }
 
-/* tiles */
-.tile{ @apply rounded-[28px] transition-transform duration-300 hover:-translate-y-1; background:var(--bg-3); }
+/* =========================
+   THEME-AWARE HELPERS
+========================= */
+.text-theme        { color: var(--text); }
+.text-theme-muted  { color: color-mix(in oklab, var(--text) 70%, transparent); }
+.text-theme-subtle { color: color-mix(in oklab, var(--text) 55%, transparent); }
 
-/* hero haze */
-.pastel{ background:linear-gradient(135deg,#e9d5ff22,#fce7f322,#c7d2fe22,#fbcfe822); }
-
-/* 3D/glass utils */
-.backdrop-blur-sm{ backdrop-filter: blur(6px); }
-.perspective-1200{ perspective:1200px; }
-.preserve-3d{ transform-style: preserve-3d; }
-.will-change-transform{ will-change: transform; }
-.no-scrollbar::-webkit-scrollbar{ display:none; }
-.no-scrollbar{ -ms-overflow-style:none; scrollbar-width:none; }
-
-/* glass cards */
-.card-neo{
-  background: linear-gradient(180deg,
-    color-mix(in oklab, var(--bg-2) 96%, white 4%),
-    color-mix(in oklab, var(--bg-2) 98%, white 2%)
-  );
-  border:1px solid var(--border);
-  box-shadow:
-    0 20px 60px rgba(0,0,0,.22),
-    inset 0 1px 0 rgba(255,255,255,.06);
-}
-
-/* soft pill */
-.pill-neo{
-  background: linear-gradient(180deg,
-    color-mix(in oklab, var(--bg-3) 94%, white 6%),
-    color-mix(in oklab, var(--bg-3) 98%, white 2%)
-  );
-  border:1px solid var(--border);
-  box-shadow:
-    0 6px 20px rgba(0,0,0,.18),
-    inset 0 1px 0 rgba(255,255,255,.05);
-}
-
-/* cursor-shine for 3D cards */
-.shine{
-  position:absolute; inset:-1px; border-radius:inherit; pointer-events:none;
-  background:
-    radial-gradient(160px 120px at var(--mx,50%) var(--my,40%), rgba(255,255,255,.22), rgba(255,255,255,0) 65%),
-    radial-gradient(400px 240px at 80% -20%, var(--ring), transparent 60%);
-  mix-blend-mode: screen;
+/* soft glass that adapts to both themes */
+.bg-glass-soft {
+  background: color-mix(in oklab, var(--text) 7%, transparent);
 }
