@@ -7,6 +7,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import LeftRail from "./components/LeftRail";
 import LeetCodeSection from "./components/LeetCodeSection";
 import ExperienceEducation from "./components/ExperienceEducation";
+import FuturePlans from "./components/FuturePlans"; // <-- NEW
 
 const Hero = lazy(() => import("./components/Hero"));
 const About = lazy(() => import("./components/About"));
@@ -28,16 +29,18 @@ export default function App() {
       <div className="lg:ml-[340px] max-w-5xl mx-auto py-6 px-4">
         <ErrorBoundary>
           <main className="space-y-20">
-            {/* ❌ No wrapper card here – Hero already renders the card inside itself */}
             <section id="home">
               <Suspense fallback={<Fallback h={260} />}>
                 <Hero />
               </Suspense>
             </section>
 
-              <Suspense fallback={<Fallback />}>
-                <About />
-              </Suspense>
+            <Suspense fallback={<Fallback />}>
+              <About />
+            </Suspense>
+
+            {/* NEW: Future Plans sits above portfolio/projects */}
+            <FuturePlans />
 
             <Suspense fallback={<Fallback />}>
               <Projects />
