@@ -4,13 +4,12 @@ import { FaGithub, FaLinkedin } from "react-icons/fa";
 import { SiLeetcode, SiGmail } from "react-icons/si";
 import ThemeToggle from "./ThemeToggle";
 import { profile } from "../lib/data";
-import { NAV_H } from "./Navbar"; // <<< use the same height as your navbar
+import { NAV_H } from "./Navbar";
 
 const isCoarsePointer =
   typeof window !== "undefined" &&
   window.matchMedia?.("(pointer: coarse)").matches;
 
-/** Reusable 3D/magnetic orb */
 const Orb = ({
   href,
   title,
@@ -68,19 +67,22 @@ const Orb = ({
       whileHover={isCoarsePointer ? undefined : { scale: 1.08 }}
       whileTap={{ scale: 0.96 }}
       className={`group relative grid place-items-center rounded-full will-change-transform
-                  bg-white/10 backdrop-blur-xl pointer-events-auto
-                  shadow-[inset_0_1px_0_rgba(255,255,255,.25),0_18px_40px_rgba(0,0,0,.35)]
+                  /* stronger light-mode contrast */
+                  bg-glass-soft border border-[var(--border)] text-[var(--text)]
+                  dark:bg-white/10 dark:text-white/90
+                  backdrop-blur-xl pointer-events-auto
+                  shadow-[inset_0_1px_0_rgba(255,255,255,.25),0_18px_40px_rgba(0,0,0,.20)]
                   transition-transform duration-300 ${className}`}
     >
       <span className={`pointer-events-none absolute -inset-2 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-tr ${gradient}`} />
       <span className="pointer-events-none absolute -inset-[2px] rounded-full
-                        bg-[conic-gradient(from_0deg,rgba(139,92,246,.35),rgba(168,85,247,.25),rgba(34,211,238,.2),rgba(139,92,246,.35))]
-                        opacity-30 group-hover:opacity-60 transition-opacity animate-spin-slow
+                        bg-[conic-gradient(from_0deg,rgba(139,92,246,.28),rgba(168,85,247,.20),rgba(34,211,238,.18),rgba(139,92,246,.28))]
+                        dark:opacity-30 opacity-40
                         [mask:linear-gradient(#000_0_0)_content-box,linear-gradient(#000_0_0)] [mask-composite:exclude] p-[2px]" />
       <span className="pointer-events-none absolute inset-0 rounded-full
                         bg-[radial-gradient(160px_120px_at_var(--mx,50%)_var(--my,40%),rgba(255,255,255,.22),rgba(255,255,255,0)_65%)]
                         mix-blend-screen" />
-      <span className="relative z-[1] text-white/90 text-xl drop-shadow pointer-events-none">
+      <span className="relative z-[1] text-xl drop-shadow pointer-events-none">
         {children}
       </span>
     </Comp>
@@ -88,9 +90,9 @@ const Orb = ({
 };
 
 export default function LeftRail() {
-  // mobile/tablet: one row at the bottom (unchanged)
   return (
     <>
+      {/* MOBILE/TABLET */}
       <div className="xl:hidden fixed z-40 right-2 sm:right-3 bottom-[calc(12px+env(safe-area-inset-bottom))] flex items-center gap-2">
         <Orb href="#contact" title="Let’s Talk" size={44} gradient="from-amber-400/40 via-rose-400/30 to-fuchsia-400/30">💬</Orb>
         <Orb title="Theme" size={44}><div className="grid place-items-center pointer-events-auto"><ThemeToggle/></div></Orb>
@@ -100,17 +102,16 @@ export default function LeftRail() {
         <Orb href={`mailto:${profile.links.email}`} title="Email" size={44} gradient="from-emerald-400/40 via-teal-400/30 to-cyan-400/30"><SiGmail/></Orb>
       </div>
 
-      {/* DESKTOP (xl+): split rails */}
-      {/* TOP-RIGHT: offset by navbar height + 16px */}
+      {/* DESKTOP TOP-RIGHT */}
       <div
         className="hidden xl:flex fixed z-40 right-5 flex-col items-end gap-3"
-        style={{ top: `calc(${NAV_H}px + 16px)` }} // <= the gap under nav
+        style={{ top: `calc(${NAV_H}px + 16px)` }}
       >
         <Orb title="Theme"><div className="grid place-items-center pointer-events-auto"><ThemeToggle/></div></Orb>
         <Orb href="#contact" title="Let’s Talk" gradient="from-amber-400/40 via-rose-400/30 to-fuchsia-400/30">💬</Orb>
       </div>
 
-      {/* BOTTOM-RIGHT */}
+      {/* DESKTOP BOTTOM-RIGHT */}
       <div className="hidden xl:flex fixed z-40 right-5 bottom-[calc(16px+env(safe-area-inset-bottom))] flex-col items-end gap-3">
         <Orb href={profile.links.linkedin} title="LinkedIn" gradient="from-sky-400/40 via-blue-500/30 to-indigo-500/30"><FaLinkedin/></Orb>
         <Orb href={profile.links.leetcode} title="LeetCode" gradient="from-yellow-400/40 via-orange-400/30 to-amber-500/30"><SiLeetcode/></Orb>
