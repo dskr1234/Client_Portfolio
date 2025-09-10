@@ -31,10 +31,10 @@ export default function App() {
           <main className="space-y-20">
             <section id="home">
               <Suspense fallback={<Fallback h={260} />}>
-            <FuturePlans />
                 <Hero />
               </Suspense>
             </section>
+            <FuturePlans />
 
             <Suspense fallback={<Fallback />}>
               <About />
