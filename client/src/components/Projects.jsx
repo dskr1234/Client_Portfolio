@@ -35,7 +35,7 @@ function RecruiteMeeCard() {
   return (
     <Tilt3D>
       <div className="relative card-neo rounded-[24px] p-6 md:p-8 overflow-hidden">
-        <div className="shine" />
+        <div className="shine pointer-events-none" />
 
         {/* Header */}
         <div className="flex items-start gap-2">
@@ -90,13 +90,19 @@ function LivePreview3D({ src, label, href, ctaLabel = "Visit" }) {
   const isImage = typeof src === "string" && src.match(/\.(png|jpe?g|gif|webp|avif)$/i);
   const openHref = href || src;
 
+  const onVisit = (e) => {
+    // Robust open in new tab (works even if an overlay tries to intercept)
+    e.preventDefault();
+    if (openHref) window.open(openHref, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <Tilt3D className="w-full">
       <div className="relative card-neo rounded-[24px] overflow-hidden flex flex-col">
-        <div className="shine" />
+        <div className="shine pointer-events-none" />
 
         {/* Frame area */}
-        <div className="relative h-[420px] bg-white">
+        <div className="relative h-[420px] bg-white z-0">
           {isVideo ? (
             <video
               src={src}
@@ -111,7 +117,7 @@ function LivePreview3D({ src, label, href, ctaLabel = "Visit" }) {
           ) : (
             <iframe
               src={src}
-              title={label}
+              title={label || "Project preview"}
               loading="lazy"
               className="w-full h-full"
               allow="clipboard-write; fullscreen; autoplay"
@@ -120,16 +126,16 @@ function LivePreview3D({ src, label, href, ctaLabel = "Visit" }) {
         </div>
 
         {/* Footer with centered CTA */}
-        <div className="relative z-10 border-t border-white/10 bg-[rgba(255,255,255,.04)] backdrop-blur-md">
-          <div className="px-4 py-3 flex items-center justify-center gap-3">
-            {label && (
-              <p className="text-[11px] text-white/65">{label}</p>
-            )}
+        <div className="relative z-20 border-t border-white/10 bg-[rgba(255,255,255,.05)] backdrop-blur-md">
+          <div className="px-5 py-3 flex items-center justify-center gap-3">
+            {label && <p className="text-[11px] text-white/65">{label}</p>}
+
             {!!openHref && (
               <a
                 href={openHref}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={onVisit}
                 aria-label={`${ctaLabel} ${label || ""}`}
                 className="
                   inline-flex items-center gap-2 px-4 py-2 rounded-full
