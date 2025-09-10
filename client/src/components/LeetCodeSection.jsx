@@ -16,7 +16,7 @@ function CountUp({ to = 0, className = "" }) {
 
 /* gauge */
 function Gauge3D({ value = 0, denom }) {
-  const total = denom || Math.max(1000, value);
+  const total = (typeof denom === "number" ? denom : undefined) || Math.max(1000, value);
   const pct = Math.max(0, Math.min(100, Math.round((value / total) * 100)));
   return (
     <Tilt3D className="h-full">
@@ -46,7 +46,10 @@ function Gauge3D({ value = 0, denom }) {
           <div className="absolute inset-0 grid place-items-center">
             <div className="text-center">
               <CountUp to={value} className="text-3xl font-extrabold text-theme" />
-              <div className="text-xs text-theme-muted">Solved{denom ? ` / ${denom}` : ""}</div>
+              <div className="text-xs text-theme-muted">
+                {"Solved"}
+                {denom !== undefined && denom !== null ? ` / ${denom}` : ""}
+              </div>
             </div>
           </div>
         </div>
@@ -68,13 +71,47 @@ function StatCard({ label, value, denom, Icon }) {
         </div>
         <div className="text-2xl font-semibold text-theme leading-tight">
           <CountUp to={value ?? 0} />
-          {typeof denom === "number" ? (
+          {denom !== undefined && denom !== null ? (
             <span className="text-sm text-theme-subtle"> / {denom}</span>
           ) : null}
         </div>
       </div>
     </Tilt3D>
   );
+}
+
+/* map 72-day series -> 12 weeks x 7 rows (GitHub-style) */
+function useWeeklyHeatmap(series) {
+  // Build a map dateStr -> count for O(1) lookups
+  const byDate = new Map(series.map(d => [d.date, d.count]));
+  const last = series[series.length - 1]?.ts ? new Date(series[series.length - 1].ts) : new Date();
+  last.setHours(0,0,0,0);
+
+  // We want 12 columns (weeks), left -> right old -> new
+  const weeks = Array.from({ length: 12 }, () => Array(7).fill(0));
+  const labels = Array(12).fill(""); // month labels per column
+
+  // Start from 11 weeks ago, fill day by day
+  const start = new Date(last);
+  start.setDate(start.getDate() - (12 * 7 - 1)); // 83 days back
+
+  for (let i = 0; i < 12 * 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const weekIdx = Math.floor(i / 7);
+    const dayIdx = d.getDay(); // 0..6 (Sun..Sat)
+    const key = d.toISOString().slice(0, 10);
+    weeks[weekIdx][dayIdx] = byDate.get(key) || 0;
+
+    // month label once per column (when Monday or first day)
+    if (dayIdx === 1 || i === 0) {
+      const label = d.toLocaleString(undefined, { month: "short" });
+      // Only set if month changed vs previous column
+      if (weekIdx === 0 || labels[weekIdx - 1] !== label) labels[weekIdx] = label;
+    }
+  }
+
+  return { weeks, labels };
 }
 
 export default function LeetCodeSection() {
@@ -109,26 +146,21 @@ export default function LeetCodeSection() {
   const totals = data?.totals  || { solved: 0, easy: 0, medium: 0, hard: 0 };
   const denoms = data?.denoms  || {};
 
-  const monthLabels = useMemo(() => {
-    const COLS = 12, step = 6;
-    const labels = [];
-    for (let c = 0; c < COLS; c++) {
-      const idx = c * step;
-      const dt = new Date(series[idx]?.ts || Date.now());
-      const prevIdx = (c - 1) * step;
-      const prevMonth = c > 0 ? new Date(series[prevIdx]?.ts || Date.now()).getMonth() : null;
-      const label = dt.toLocaleString(undefined, { month: "short" });
-      labels.push(dt.getMonth() !== prevMonth || c === 0 ? label : "");
-    }
-    return labels;
-  }, [series]);
+  const { weeks, labels: monthLabels } = useWeeklyHeatmap(series);
 
   const maxDaily = data?.maxDaily ?? Math.max(0, ...bars);
   const maxDailyDate = data?.maxDailyDate || series[bars.indexOf(maxDaily)]?.date || null;
 
-  // submission track summary for the 72-day window
   const totalInWindow = bars.reduce((s, v) => s + v, 0);
   const activeDaysWindow = bars.filter(v => v > 0).length;
+
+  // color for blocks
+  const cellClass = (v) =>
+    v >= 10 ? "bg-fuchsia-500/85" :
+    v >= 6  ? "bg-violet-500/80"  :
+    v >= 3  ? "bg-violet-400/70"  :
+    v >= 1  ? "bg-violet-300/50 dark:bg-violet-300/40" :
+              "bg-black/5 dark:bg-white/10";
 
   return (
     <section id="leetcode" className="soft-2 rounded-[28px] neo p-6">
@@ -152,43 +184,58 @@ export default function LeetCodeSection() {
       </div>
 
       <div className="grid lg:grid-cols-[320px_1fr] gap-6">
-        <Gauge3D value={totals.solved} denom={denoms.all} />
+        <Gauge3D value={totals.solved} denom={denoms?.all ?? null} />
 
         <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <StatCard label="Easy"   value={totals.easy}   denom={denoms.easy}   Icon={Smile} />
-          <StatCard label="Medium" value={totals.medium} denom={denoms.medium} Icon={GaugeCircle} />
-          <StatCard label="Hard"   value={totals.hard}   denom={denoms.hard}   Icon={Flame} />
+          <StatCard label="Easy"   value={totals.easy}   denom={denoms?.easy   ?? null} Icon={Smile} />
+          <StatCard label="Medium" value={totals.medium} denom={denoms?.medium ?? null} Icon={GaugeCircle} />
+          <StatCard label="Hard"   value={totals.hard}   denom={denoms?.hard   ?? null} Icon={Flame} />
           <StatCard label="Active Days" value={data?.activeDays} Icon={CalendarDays} />
           <StatCard label="Max Streak"  value={data?.maxStreak}  Icon={Timer} />
           <StatCard label="Submissions (YTD)" value={data?.yearSubmissions} Icon={Send} />
         </div>
       </div>
 
+      {/* === Heatmap (12 weeks x 7 rows) === */}
       <Tilt3D className="mt-6">
-        <div className="relative overflow-hidden card-neo rounded-[20px] p-4">
+        <div className="relative overflow-hidden card-neo rounded-[20px] p-5">
           <div className="shine" />
 
-          <div className="grid grid-cols-12 gap-1">
-            {bars.map((v, i) => {
-              const cls =
-                v > 7 ? "bg-violet-400/80" :
-                v > 3 ? "bg-violet-400/55" :
-                v > 0 ? "bg-black/10 dark:bg-white/20" :
-                        "bg-black/5 dark:bg-white/10";
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, scale: 0.95, y: 4 }}
-                  whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-12%" }}
-                  transition={{ duration: 0.22, delay: i * 0.012, ease: "easeOut" }}
-                  className={`${cls} h-3 rounded`}
-                  title={`${series[i]?.date || ""}: ${v} submission${v === 1 ? "" : "s"}`}
-                />
-              );
-            })}
+          <div className="flex items-start gap-4">
+            {/* grid */}
+            <div className="grid grid-cols-12 gap-1">
+              {weeks.map((week, wi) => (
+                <div key={wi} className="grid grid-rows-7 gap-1">
+                  {week.map((v, di) => (
+                    <motion.div
+                      key={di}
+                      initial={{ opacity: 0, scale: 0.95, y: 4 }}
+                      whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                      viewport={{ once: true, margin: "-12%" }}
+                      transition={{ duration: 0.18, ease: "easeOut" }}
+                      className={`${cellClass(v)} w-3.5 h-3.5 rounded-[4px]`}
+                      title={`${v} submission${v === 1 ? "" : "s"}`}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* legend */}
+            <div className="hidden sm:block text-[10px] text-theme-subtle mt-1">
+              <div className="mb-1">Less</div>
+              <div className="flex items-center gap-1">
+                <div className="w-3.5 h-3.5 rounded-[4px] bg-black/5 dark:bg-white/10" />
+                <div className="w-3.5 h-3.5 rounded-[4px] bg-violet-300/50 dark:bg-violet-300/40" />
+                <div className="w-3.5 h-3.5 rounded-[4px] bg-violet-400/70" />
+                <div className="w-3.5 h-3.5 rounded-[4px] bg-violet-500/80" />
+                <div className="w-3.5 h-3.5 rounded-[4px] bg-fuchsia-500/85" />
+              </div>
+              <div className="mt-1">More</div>
+            </div>
           </div>
 
+          {/* month labels under grid */}
           <div className="mt-2 grid grid-cols-12 text-[10px] text-theme-subtle">
             {monthLabels.map((m, i) => (
               <div key={i} className="text-center">{m}</div>
