@@ -62,13 +62,17 @@ function RecruiteMeeCard() {
 
         {/* One-liner */}
         <div className="mt-5">
-          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">About</h4>
+          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">
+            About
+          </h4>
           <p className="text-[var(--text-muted)] leading-relaxed">{oneLiner}</p>
         </div>
 
         {/* Overview bullets */}
         <div className="mt-5">
-          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">Overview</h4>
+          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">
+            Overview
+          </h4>
           <ul className="space-y-1 list-disc list-inside text-sm text-[var(--text-muted)]">
             {bullets.map((b, i) => (
               <li key={i}>{b}</li>
@@ -80,53 +84,75 @@ function RecruiteMeeCard() {
   );
 }
 
-/* --- Right side: live preview frame + Visit CTA --- */
+/* --- Right side: live preview frame + centered glassy Visit CTA --- */
 function LivePreview3D({ src, label, href, ctaLabel = "Visit" }) {
   const isVideo = typeof src === "string" && src.match(/\.(mp4|webm|ogg)$/i);
   const isImage = typeof src === "string" && src.match(/\.(png|jpe?g|gif|webp|avif)$/i);
-  const openHref = href || src; // default to src if you don't pass href
+  const openHref = href || src; // default to src if href not provided
 
   return (
     <Tilt3D className="w-full">
-      <div className="relative card-neo rounded-[24px] overflow-hidden">
-        <div className="shine" />
-        {isVideo ? (
-          <video
-            src={src}
-            className="w-full h-[420px] object-cover"
-            autoPlay
-            muted
-            loop
-            playsInline
-          />
-        ) : isImage ? (
-          <img src={src} alt="preview" className="w-full h-[420px] object-cover" />
-        ) : (
-          <iframe
-            src={src}
-            title={label}
-            loading="lazy"
-            className="w-full h-[420px] bg-white"
-            referrerPolicy="no-referrer"
-            allow="clipboard-write; fullscreen; autoplay"
-          />
-        )}
-      </div>
+      <div className="relative">
+        {/* Preview frame */}
+        <div className="relative card-neo rounded-[24px] overflow-hidden group">
+          <div className="shine" />
+          {isVideo ? (
+            <video
+              src={src}
+              className="w-full h-[420px] object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
+          ) : isImage ? (
+            <img src={src} alt="preview" className="w-full h-[420px] object-cover" />
+          ) : (
+            <iframe
+              src={src}
+              title={label}
+              loading="lazy"
+              className="w-full h-[420px] bg-white"
+              referrerPolicy="no-referrer"
+              allow="clipboard-write; fullscreen; autoplay"
+            />
+          )}
+        </div>
 
-      {/* label + Visit button */}
-      <div className="mt-3 flex items-center justify-center gap-3">
-        <p className="text-xs text-white/60">{label}</p>
-        {!!openHref && (
-          <a
-            href={openHref}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full
-                       bg-[var(--bg-3)]/80 border border-[var(--border)]
-                       text-xs text-[var(--text)]/85 hover:bg-[var(--bg-3)] transition"
-          >
-            {ctaLabel} <ExternalLink size={14} />
-          </a>
+        {/* Centered CTA */}
+        <div className="mt-4 flex justify-center">
+          {!!openHref && (
+            <a
+              href={openHref}
+              target="_blank"
+              rel="noreferrer"
+              className="
+                relative inline-flex items-center gap-2 px-4 py-2 rounded-full
+                text-sm text-[var(--text)]/90
+                bg-[linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06))]
+                backdrop-blur-md border border-white/10
+                shadow-[0_10px_30px_rgba(0,0,0,.25)] ring-1 ring-white/10
+                transition-transform duration-200 hover:-translate-y-[1px] active:translate-y-0
+              "
+            >
+              {/* soft aurora glow */}
+              <span
+                aria-hidden
+                className="
+                  pointer-events-none absolute -inset-px rounded-full opacity-60 blur
+                  bg-[conic-gradient(from_0deg,rgba(167,139,250,.35),rgba(236,72,153,.35),rgba(34,211,238,.35),rgba(167,139,250,.35))]
+                "
+              />
+              <span className="relative z-10 inline-flex items-center gap-2">
+                {ctaLabel} <ExternalLink size={14} />
+              </span>
+            </a>
+          )}
+        </div>
+
+        {/* Sub-label */}
+        {label && (
+          <p className="mt-2 text-[11px] text-center text-white/55">{label}</p>
         )}
       </div>
     </Tilt3D>
