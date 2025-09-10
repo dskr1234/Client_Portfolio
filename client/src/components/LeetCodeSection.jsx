@@ -47,8 +47,7 @@ function Gauge3D({ value = 0, denom }) {
             <div className="text-center">
               <CountUp to={value} className="text-3xl font-extrabold text-theme" />
               <div className="text-xs text-theme-muted">
-                {"Solved"}
-                {denom !== undefined && denom !== null ? ` / ${denom}` : ""}
+                Solved{denom !== undefined && denom !== null ? ` / ${denom}` : ""}
               </div>
             </div>
           </div>
@@ -80,46 +79,41 @@ function StatCard({ label, value, denom, Icon }) {
   );
 }
 
-/* === Week-aligned (Sun→Sat) heatmap builder ===
-   - 12 columns (weeks), 7 rows (days)
-   - Last column is the *current* week (contains today)
-*/
-function useWeeklyHeatmap(series) {
-  const map = new Map(series.map(d => [d.date, d.count]));
+/* ---------- Build full-year heatmap (Sun->Sat columns) ---------- */
+function useYearHeatmap(calendarYear) {
+  // Map date -> count for O(1) lookups
+  const map = new Map((calendarYear || []).map(d => [d.date, d.count]));
+
   const today = new Date(); today.setHours(0,0,0,0);
-
-  // Align to week starting Sunday; last column = current week
+  // Start = 52 weeks back (approx 364 days), aligned to Sunday so the last col is current week
   const weekStartOfToday = new Date(today);
-  weekStartOfToday.setDate(today.getDate() - today.getDay()); // Sunday of this week
+  weekStartOfToday.setDate(today.getDate() - today.getDay()); // Sunday
 
-  // Start 11 weeks before current week
   const start = new Date(weekStartOfToday);
-  start.setDate(weekStartOfToday.getDate() - 11 * 7);
+  start.setDate(weekStartOfToday.getDate() - 52 * 7); // 53 columns total (0..52)
+  const cols = 53; // LC shows ~53 week columns
 
-  const weeks = Array.from({ length: 12 }, () => Array(7).fill({ v: 0, date: "", isToday: false }));
-  const monthLabels = Array(12).fill("");
+  const weeks = Array.from({ length: cols }, () => Array(7).fill({ v: 0, date: "", isToday: false }));
+  const monthLabels = Array(cols).fill("");
 
-  for (let w = 0; w < 12; w++) {
+  for (let w = 0; w < cols; w++) {
     for (let d = 0; d < 7; d++) {
-      const cellDate = new Date(start);
-      cellDate.setDate(start.getDate() + w * 7 + d);
-      const key = cellDate.toISOString().slice(0, 10);
+      const cell = new Date(start);
+      cell.setDate(start.getDate() + w * 7 + d);
+      const key = cell.toISOString().slice(0, 10);
       const v = map.get(key) || 0;
-      const isToday =
-        cellDate.getTime() === today.getTime(); // exact midnight local comparison
-
+      const isToday = cell.getTime() === today.getTime();
       weeks[w][d] = { v, date: key, isToday };
     }
 
-    // month label once per column, when month changes vs previous column
+    // month label at the first week that starts a new month
     const firstOfCol = new Date(start);
     firstOfCol.setDate(start.getDate() + w * 7);
     const label = firstOfCol.toLocaleString(undefined, { month: "short" });
     if (w === 0) monthLabels[w] = label;
     else {
-      const prevFirst = new Date(start);
-      prevFirst.setDate(start.getDate() + (w - 1) * 7);
-      const prevLabel = prevFirst.toLocaleString(undefined, { month: "short" });
+      const prev = new Date(start); prev.setDate(start.getDate() + (w - 1) * 7);
+      const prevLabel = prev.toLocaleString(undefined, { month: "short" });
       if (label !== prevLabel) monthLabels[w] = label;
     }
   }
@@ -145,33 +139,31 @@ export default function LeetCodeSection() {
     go();
   }, [username]);
 
+  // 72-day series (still used for some stats / fallback)
   const series = useMemo(() => {
     if (Array.isArray(data?.series)) return data.series;
-    const b = data?.bars ?? Array.from({ length: 72 }, () => 0);
-    const end = new Date(); end.setHours(0,0,0,0);
-    return b.map((v, i) => {
-      const d = new Date(end); d.setDate(end.getDate() - (71 - i));
-      return { ts: d.getTime(), date: d.toISOString().slice(0,10), count: v };
-    });
+    return [];
   }, [data]);
 
-  const bars   = series.map(s => s.count);
   const totals = data?.totals  || { solved: 0, easy: 0, medium: 0, hard: 0 };
   const denoms = data?.denoms  || {};
 
-  const { weeks, monthLabels } = useWeeklyHeatmap(series);
+  const { weeks, monthLabels } = useYearHeatmap(data?.calendarYear || []);
 
-  const maxDaily = data?.maxDaily ?? Math.max(0, ...bars);
-  const maxDailyDate = data?.maxDailyDate || series[bars.indexOf(maxDaily)]?.date || null;
+  const bars = series.map(s => s.count);
+  const maxDaily = data?.maxDaily ?? Math.max(0, ...bars, 0);
+  const maxDailyDate = data?.maxDailyDate || (series.length ? series[bars.indexOf(maxDaily)]?.date : null);
 
-  const totalInWindow = bars.reduce((s, v) => s + v, 0);
-  const activeDaysWindow = bars.filter(v => v > 0).length;
+  // screenshot-style summary line
+  const totalInYear = data?.yearSubmissions ?? (data?.calendarYear || []).reduce((s, d) => s + (d?.count || 0), 0);
+  const activeDaysYear = data?.activeDays ?? (data?.calendarYear || []).filter(d => d.count > 0).length;
 
+  // GREEN palette like LC (better readability)
   const cellClass = (v) =>
-    v >= 10 ? "bg-fuchsia-500/85" :
-    v >= 6  ? "bg-violet-500/80"  :
-    v >= 3  ? "bg-violet-400/70"  :
-    v >= 1  ? "bg-violet-300/50 dark:bg-violet-300/40" :
+    v >= 10 ? "bg-emerald-600/90" :
+    v >= 6  ? "bg-emerald-500/85" :
+    v >= 3  ? "bg-emerald-400/70" :
+    v >= 1  ? "bg-emerald-300/50 dark:bg-emerald-300/40" :
               "bg-black/5 dark:bg-white/10";
 
   return (
@@ -208,14 +200,14 @@ export default function LeetCodeSection() {
         </div>
       </div>
 
-      {/* === Heatmap (12 weekly columns, up-to-date) === */}
+      {/* ========== Full-year heatmap (53 weeks × 7 rows) ========== */}
       <Tilt3D className="mt-6">
         <div className="relative overflow-hidden card-neo rounded-[20px] p-5">
           <div className="shine" />
 
           <div className="flex items-start gap-4">
             {/* grid */}
-            <div className="grid grid-cols-12 gap-1">
+            <div className="grid" style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0,1fr))`, gap: "4px" }}>
               {weeks.map((week, wi) => (
                 <div key={wi} className="grid grid-rows-7 gap-1">
                   {week.map((cell, di) => (
@@ -224,7 +216,7 @@ export default function LeetCodeSection() {
                       initial={{ opacity: 0, scale: 0.95, y: 4 }}
                       whileInView={{ opacity: 1, scale: 1, y: 0 }}
                       viewport={{ once: true, margin: "-12%" }}
-                      transition={{ duration: 0.18, ease: "easeOut" }}
+                      transition={{ duration: 0.16, ease: "easeOut" }}
                       className={`${cellClass(cell.v)} w-3.5 h-3.5 rounded-[4px] ${cell.isToday ? "ring-2 ring-[var(--ring)]" : ""}`}
                       title={`${cell.date}: ${cell.v} submission${cell.v === 1 ? "" : "s"}`}
                     />
@@ -233,32 +225,34 @@ export default function LeetCodeSection() {
               ))}
             </div>
 
-            {/* legend */}
+            {/* legend (Less → More) */}
             <div className="hidden sm:block text-[10px] text-theme-subtle mt-1">
               <div className="mb-1">Less</div>
               <div className="flex items-center gap-1">
                 <div className="w-3.5 h-3.5 rounded-[4px] bg-black/5 dark:bg-white/10" />
-                <div className="w-3.5 h-3.5 rounded-[4px] bg-violet-300/50 dark:bg-violet-300/40" />
-                <div className="w-3.5 h-3.5 rounded-[4px] bg-violet-400/70" />
-                <div className="w-3.5 h-3.5 rounded-[4px] bg-violet-500/80" />
-                <div className="w-3.5 h-3.5 rounded-[4px] bg-fuchsia-500/85" />
+                <div className="w-3.5 h-3.5 rounded-[4px] bg-emerald-300/50 dark:bg-emerald-300/40" />
+                <div className="w-3.5 h-3.5 rounded-[4px] bg-emerald-400/70" />
+                <div className="w-3.5 h-3.5 rounded-[4px] bg-emerald-500/85" />
+                <div className="w-3.5 h-3.5 rounded-[4px] bg-emerald-600/90" />
               </div>
               <div className="mt-1">More</div>
             </div>
           </div>
 
           {/* month labels under grid */}
-          <div className="mt-2 grid grid-cols-12 text-[10px] text-theme-subtle">
+          <div className="mt-2 grid" style={{ gridTemplateColumns: `repeat(${monthLabels.length}, minmax(0,1fr))` }}>
             {monthLabels.map((m, i) => (
-              <div key={i} className="text-center">{m}</div>
+              <div key={i} className="text-center text-[10px] text-theme-subtle">{m}</div>
             ))}
           </div>
 
-          {/* Submission Track summary */}
+          {/* screenshot-style summary line */}
           <div className="mt-3 text-xs text-theme-subtle">
-            <span className="font-semibold text-theme">Submission Track:</span>{" "}
-            {bars.reduce((s, v) => s + v, 0)} total · {bars.filter(v => v > 0).length} active days · max/day {maxDaily}
-            {maxDailyDate ? ` on ${new Date(maxDailyDate).toLocaleDateString()}` : ""}
+            <span className="font-semibold text-theme">{totalInYear}</span> submissions in the past one year
+            <span className="mx-2">•</span>
+            Total active days: <span className="font-semibold text-theme">{activeDaysYear}</span>
+            <span className="mx-2">•</span>
+            Max streak: <span className="font-semibold text-theme">{data?.maxStreak ?? 0}</span>
           </div>
         </div>
       </Tilt3D>
