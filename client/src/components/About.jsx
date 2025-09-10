@@ -4,7 +4,7 @@ import Tilt3D from "./Tilt3D";
 import { motion } from "framer-motion";
 import {
   GaugeCircle, Layers, ShieldCheck, TrendingUp,
-  Briefcase, Globe2, Zap, Users, Rocket
+  Briefcase, Globe2, Zap, Users, Rocket, Lightbulb // <- added Lightbulb
 } from "lucide-react";
 
 /* Word-by-word reveal */
@@ -42,7 +42,7 @@ const Pillar = ({ icon: Icon, title, text }) => (
 );
 
 const SmallCard = ({ icon: Icon, title, text }) => (
-  <Tilt3D>
+  <Tilt3D className="h-full">
     <div className="card-neo rounded-[20px] p-5 space-y-2 h-full">
       <div className="flex items-center gap-2 font-semibold text-[var(--text)]">
         <Icon size={16} /> {title}
@@ -109,7 +109,7 @@ export default function About() {
           </motion.div>
         </Tilt3D>
 
-        {/* === FIVE SEPARATE CARDS BELOW — full-width grid === */}
+        {/* === SIX SEPARATE CARDS BELOW — responsive grid === */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <SmallCard
             icon={Briefcase}
@@ -137,11 +137,10 @@ export default function About() {
             text="Energy, ownership, and a builder’s spirit — delivering impact from day one."
           />
           <SmallCard
-  icon={Lightbulb}
-  title="Learning > Ego"
-  text="Stay curious, seek feedback early, and adapt fast — progress beats perfection."
-/>
-
+            icon={Lightbulb}
+            title="Learning > Ego"
+            text="Stay curious, seek feedback early, and adapt fast — progress beats perfection."
+          />
         </div>
       </div>
     </Section>
