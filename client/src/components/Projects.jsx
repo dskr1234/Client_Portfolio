@@ -59,6 +59,14 @@ function RecruiteMeeCard() {
           ))}
         </div>
 
+         {/* One-liner */}
+        <div className="mt-5">
+          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">
+            About
+          </h4>
+          <p className="text-[var(--text-muted)] leading-relaxed">{oneLiner}</p>
+        </div>
+
         {/* Overview bullets */}
         <div className="mt-5">
           <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">
