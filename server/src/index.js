@@ -11,22 +11,15 @@ app.use(express.json());
 
 /* ---------------- CORS ---------------- */
 const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN || "").trim();
-const PREVIEW_PREFIX   = (process.env.FRONTEND_PREVIEW_PREFIX || "").trim();
-const EXTRA_ORIGINS    = (process.env.CORS_ORIGIN || "")
-  .split(",")
-  .map(s => s.trim())
-  .filter(Boolean);
+const PREVIEW_PREFIX  = (process.env.FRONTEND_PREVIEW_PREFIX || "").trim();
+const EXTRA_ORIGINS   = (process.env.CORS_ORIGIN || "")
+  .split(",").map(s => s.trim()).filter(Boolean);
 
 const normalize = (u) => {
   if (!u) return "";
-  try {
-    const { protocol, host } = new URL(u);
-    return `${protocol}//${host}`;
-  } catch {
-    return u.replace(/\/+$/, "");
-  }
+  try { const { protocol, host } = new URL(u); return `${protocol}//${host}`; }
+  catch { return u.replace(/\/+$/, ""); }
 };
-
 const allowOrigin = (origin) => {
   if (!origin) return true;
   const o = normalize(origin);
@@ -34,20 +27,16 @@ const allowOrigin = (origin) => {
   if (EXTRA_ORIGINS.map(normalize).includes(o)) return true;
   try {
     const { hostname } = new URL(origin);
-    if (PREVIEW_PREFIX && hostname.endsWith(".vercel.app") && hostname.startsWith(PREVIEW_PREFIX)) {
-      return true;
-    }
+    if (PREVIEW_PREFIX && hostname.endsWith(".vercel.app") && hostname.startsWith(PREVIEW_PREFIX)) return true;
   } catch {}
   return false;
 };
-
 const corsOptions = {
   origin(origin, cb) { cb(null, allowOrigin(origin)); },
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: false,
 };
-
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
@@ -61,28 +50,19 @@ const ContactSchema = z.object({
   email: z.string().email(),
   message: z.string().min(5).max(5000),
 });
-
 app.post("/api/contact", async (req, res) => {
   try {
     const data = ContactSchema.parse(req.body);
-    if (!process.env.CONTACT_TO) {
-      return res.status(503).json({ error: "CONTACT_TO not configured" });
-    }
+    if (!process.env.CONTACT_TO) return res.status(503).json({ error: "CONTACT_TO not configured" });
     await sendMail({
       to: process.env.CONTACT_TO,
       subject: `New portfolio message from ${data.name}`,
       replyTo: data.email,
-      html: `
-        <p><b>Name:</b> ${data.name}</p>
-        <p><b>Email:</b> ${data.email}</p>
-        <p style="white-space:pre-wrap">${data.message}</p>
-      `,
+      html: `<p><b>Name:</b> ${data.name}</p><p><b>Email:</b> ${data.email}</p><p style="white-space:pre-wrap">${data.message}</p>`,
     });
     res.json({ ok: true });
   } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ error: "Validation failed", issues: err.issues });
-    }
+    if (err instanceof z.ZodError) return res.status(400).json({ error: "Validation failed", issues: err.issues });
     console.error("MAIL ERROR:", err);
     res.status(500).json({ error: err.message || "Server error" });
   }
@@ -96,21 +76,18 @@ app.get("/api/leetcode", async (req, res) => {
     const username = (req.query.username || "").trim();
     if (!username) return res.status(400).json({ error: "username is required" });
 
-    const year = new Date().getFullYear();
+    const now = new Date(); now.setHours(0,0,0,0);
+    const year = now.getFullYear();
+
     const query = `
       query userProfile($username: String!, $year: Int) {
         allQuestionsCount { difficulty count }
         matchedUser(username: $username) {
           submitStatsGlobal { acSubmissionNum { difficulty count submissions } }
-          userCalendar(year: $year) {
-            streak
-            totalActiveDays
-            submissionCalendar
-          }
+          userCalendar(year: $year) { submissionCalendar }
         }
       }
     `;
-
     const r = await fetch("https://leetcode.com/graphql", {
       method: "POST",
       headers: {
@@ -120,32 +97,20 @@ app.get("/api/leetcode", async (req, res) => {
       },
       body: JSON.stringify({ query, variables: { username, year } }),
     });
-
-    if (!r.ok) {
-      return res.status(r.status).json({ error: `leetcode responded ${r.status}` });
-    }
-
+    if (!r.ok) return res.status(r.status).json({ error: `leetcode responded ${r.status}` });
     const json = await r.json();
 
-    /* ---------- denominators (total problems) ---------- */
+    /* ------ denominators (ALL/E/M/H) robust ------ */
     const allCountsRaw = json?.data?.allQuestionsCount || [];
     const lc = (s) => (s || "").toString().trim().toLowerCase();
-
     const byDiff = allCountsRaw.reduce((acc, it) => {
-      const key = lc(it?.difficulty);
-      const count = Number(it?.count ?? 0);
-      if (["all","easy","medium","hard"].includes(key)) acc[key] = count;
+      const k = lc(it?.difficulty);
+      if (["all","easy","medium","hard"].includes(k)) acc[k] = Number(it?.count ?? 0);
       return acc;
     }, {});
-
-    // fallback if "all" missing
     if (byDiff.all == null) {
-      const e = Number(byDiff.easy   ?? 0);
-      const m = Number(byDiff.medium ?? 0);
-      const h = Number(byDiff.hard   ?? 0);
-      byDiff.all = e + m + h;
+      byDiff.all = (byDiff.easy ?? 0) + (byDiff.medium ?? 0) + (byDiff.hard ?? 0);
     }
-
     const denoms = {
       all:    Number.isFinite(byDiff.all)    ? byDiff.all    : 0,
       easy:   Number.isFinite(byDiff.easy)   ? byDiff.easy   : 0,
@@ -153,74 +118,51 @@ app.get("/api/leetcode", async (req, res) => {
       hard:   Number.isFinite(byDiff.hard)   ? byDiff.hard   : 0,
     };
 
-    /* ---------- solved totals ---------- */
+    /* ------ totals (solved) ------ */
     const stats = json?.data?.matchedUser?.submitStatsGlobal?.acSubmissionNum || [];
-    const get = (diff) =>
-      stats.find((x) => (x.difficulty || "").toLowerCase() === diff)?.count || 0;
+    const get = (d) => stats.find((x) => lc(x?.difficulty) === d)?.count || 0;
+    const totals = { solved: get("all"), easy: get("easy"), medium: get("medium"), hard: get("hard") };
 
-    const totals = {
-      solved: get("all"),
-      easy: get("easy"),
-      medium: get("medium"),
-      hard: get("hard"),
-    };
-
-    /* ---------- calendar ---------- */
-    const calendarStr = json?.data?.matchedUser?.userCalendar?.submissionCalendar || "{}";
-    const raw = JSON.parse(calendarStr); // { "<epochSecUTC>": count }
+    /* ------ submission calendar (UTC day buckets) ------ */
     const DAY = 86400;
-
-    // normalize by UTC midnight
+    const calStr = json?.data?.matchedUser?.userCalendar?.submissionCalendar || "{}";
+    const raw = JSON.parse(calStr); // { "<epochSecUTC>": count }
     const norm = new Map();
-    for (const [k, v] of Object.entries(raw)) {
-      const sec = Number(k) || 0;
-      const cnt = Number(v) || 0;
-      const dayUTC = Math.floor(sec / DAY) * DAY;
-      norm.set(dayUTC, (norm.get(dayUTC) || 0) + cnt);
+    for (const [k,v] of Object.entries(raw)) {
+      const sec = Math.floor((Number(k) || 0) / DAY) * DAY;
+      norm.set(sec, (norm.get(sec) || 0) + (Number(v) || 0));
     }
 
-    // --- 72-day window (unchanged, used in text stats) ---
-    const endLocal = new Date(); endLocal.setHours(0,0,0,0);
+    // 72-day window (kept for small stats)
     const series72 = [];
     for (let i = 71; i >= 0; i--) {
-      const d = new Date(endLocal); d.setDate(endLocal.getDate() - i);
-      const utcSec = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 1000);
-      const count = norm.get(utcSec) || 0;
-      series72.push({ ts: d.getTime(), date: d.toISOString().slice(0,10), count });
+      const d = new Date(now); d.setDate(now.getDate() - i);
+      const sec = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 1000);
+      series72.push({ ts: d.getTime(), date: d.toISOString().slice(0,10), count: norm.get(sec) || 0 });
     }
-
-    // --- build last 365 days for heatmap (week-aligned like LC) ---
-    const today = new Date(endLocal);
-    const yearBack = new Date(today); yearBack.setDate(today.getDate() - 364);
-
-    const calYear = [];
-    for (let d = new Date(yearBack); d <= today; d.setDate(d.getDate() + 1)) {
-      const utcSec = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 1000);
-      calYear.push({
-        date: d.toISOString().slice(0,10),
-        count: norm.get(utcSec) || 0,
-      });
-    }
-
-    // yearly aggregates on UTC
-    const entries = Array.from(norm.entries())
-      .map(([sec, v]) => ({ sec: Number(sec), v: Number(v) || 0 }))
-      .sort((a, b) => a.sec - b.sec);
-
-    const yearSubmissions = entries.reduce((s, d) => s + d.v, 0);
-    const activeDays = entries.filter((d) => d.v > 0).length;
-
-    // robust max streak this year (UTC)
-    let maxStreak = 0, cur = 0;
-    const startUTC = Math.floor(Date.UTC(year, 0, 1) / 1000);
-    const todayUTC = Math.floor(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) / 1000);
-    for (let s = startUTC; s <= todayUTC; s += DAY) {
-      if ((norm.get(s) || 0) > 0) { cur += 1; if (cur > maxStreak) maxStreak = cur; }
-      else cur = 0;
-    }
-
     const maxDaily = series72.reduce((m, d) => Math.max(m, d.count), 0);
     const maxDailyDate = series72.find((d) => d.count === maxDaily)?.date || null;
+
+    // full past-365-day calendar (like LC "past one year")
+    const calYear = [];
+    const start = new Date(now); start.setDate(now.getDate() - 364);
+    for (let d = new Date(start); d <= now; d.setDate(d.getDate() + 1)) {
+      const sec = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 1000);
+      calYear.push({ date: d.toISOString().slice(0,10), count: norm.get(sec) || 0 });
+    }
+
+    // aggregates for that year window
+    const yearSubmissions = calYear.reduce((s, x) => s + (x.count || 0), 0);
+    const activeDays = calYear.filter((x) => (x.count || 0) > 0).length;
+
+    // robust max streak (calendar year UTC)
+    let maxStreak = 0, cur = 0;
+    const startUTC = Math.floor(Date.UTC(year, 0, 1) / 1000);
+    const todayUTC = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 1000);
+    for (let s = startUTC; s <= todayUTC; s += DAY) {
+      if ((norm.get(s) || 0) > 0) { cur++; if (cur > maxStreak) maxStreak = cur; }
+      else cur = 0;
+    }
 
     res.json({
       totals,
@@ -228,11 +170,11 @@ app.get("/api/leetcode", async (req, res) => {
       yearSubmissions,
       activeDays,
       maxStreak,
-      series: series72,                // 72-day (unchanged)
+      series: series72,
       bars: series72.map(x => x.count),
       maxDaily,
       maxDailyDate,
-      calendarYear: calYear,           // <-- NEW: 365 items for heatmap
+      calendarYear: calYear, // <— for the heatmap
     });
   } catch (err) {
     console.error(err);
