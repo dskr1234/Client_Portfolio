@@ -153,11 +153,8 @@ export default function Navbar() {
                                [mask-composite:exclude]"
                   />
                   <span className="text-theme font-bold text-sm" style={{ transform: "translateZ(14px)" }}>
-                    U
+                    UD
                   </span>
-                </span>
-                <span className="font-extrabold tracking-tight text-xl text-theme">
-                  Upendra<span className="text-violet-300">.</span>
                 </span>
               </a>
 
