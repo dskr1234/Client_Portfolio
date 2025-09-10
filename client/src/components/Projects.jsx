@@ -125,7 +125,7 @@ export default function Projects() {
   const previewLabel = "RecruiteMee — Live Preview";
 
   return (
-    <Section id="projects" title="Projects">
+    <Section id="projects" title="Entrepreneurial Projects">
       <div className="grid lg:grid-cols-2 gap-8 items-start">
         <RecruiteMeeCard />
         <LivePreview3D src={previewSrc} label={previewLabel} />
