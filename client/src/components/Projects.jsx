@@ -121,7 +121,7 @@ function LivePreview3D({ src, label }) {
 
 export default function Projects() {
   // You can swap this to your live demo URL, video, or image
-  const previewSrc = "/"; // or "https://app.recruite-mee.example" etc.
+  const previewSrc = "https://www.recruitemee.com/";
   const previewLabel = "RecruiteMee — Live Preview";
 
   return (
