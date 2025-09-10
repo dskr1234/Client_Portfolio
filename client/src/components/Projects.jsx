@@ -1,10 +1,10 @@
 // src/components/Projects.jsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Section from "./Section";
 import Tilt3D from "./Tilt3D";
 import { ExternalLink } from "lucide-react";
 
-/* --- One combined project card (intro + description) --- */
+/* ---------- Left: combined intro + description card ---------- */
 function RecruiteMeeCard() {
   const title = "RecruiteMee — ATS Resume Optimization";
   const period = "Jan 2024 – Present";
@@ -84,26 +84,42 @@ function RecruiteMeeCard() {
   );
 }
 
-/* --- Right side: preview with an internal footer CTA (always clickable) --- */
-function LivePreview3D({ src, label, href, ctaLabel = "Visit" }) {
-  const isVideo = typeof src === "string" && src.match(/\.(mp4|webm|ogg)$/i);
-  const isImage = typeof src === "string" && src.match(/\.(png|jpe?g|gif|webp|avif)$/i);
-  const openHref = href || src;
+/* ---------- Right: preview card (iframe/image/video with fallback) ---------- */
+function LivePreviewCard({ src, label }) {
+  const [loaded, setLoaded] = useState(false);
+  const [blocked, setBlocked] = useState(false);
 
-  const onVisit = (e) => {
-    // Robust open in new tab (works even if an overlay tries to intercept)
-    e.preventDefault();
-    if (openHref) window.open(openHref, "_blank", "noopener,noreferrer");
-  };
+  // If an iframe is blocked by X-Frame-Options/CSP, we won't get an error event.
+  // Use a small timeout; if nothing signals "loaded", assume blocked and show fallback.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!loaded) setBlocked(true);
+    }, 1800);
+    return () => clearTimeout(t);
+  }, [loaded]);
+
+  const isVideo = typeof src === "string" && /\.(mp4|webm|ogg)$/i.test(src);
+  const isImage = typeof src === "string" && /\.(png|jpe?g|gif|webp|avif)$/i.test(src);
 
   return (
     <Tilt3D className="w-full">
-      <div className="relative card-neo rounded-[24px] overflow-hidden flex flex-col">
+      <div className="relative card-neo rounded-[24px] overflow-hidden">
         <div className="shine pointer-events-none" />
 
-        {/* Frame area */}
-        <div className="relative h-[420px] bg-white z-0">
-          {isVideo ? (
+        <div className="relative h-[420px] bg-[var(--bg)]">
+          {blocked ? (
+            <div className="absolute inset-0 grid place-items-center p-6 text-center">
+              <div className="max-w-sm">
+                <div className="text-sm font-semibold text-[var(--text)] mb-1">
+                  Preview unavailable
+                </div>
+                <p className="text-xs text-[var(--text-muted)]">
+                  This site blocks embedding in iframes. Use the button below to open it in a
+                  new tab.
+                </p>
+              </div>
+            </div>
+          ) : isVideo ? (
             <video
               src={src}
               className="w-full h-full object-cover"
@@ -111,54 +127,66 @@ function LivePreview3D({ src, label, href, ctaLabel = "Visit" }) {
               muted
               loop
               playsInline
+              onLoadedData={() => setLoaded(true)}
             />
           ) : isImage ? (
-            <img src={src} alt="preview" className="w-full h-full object-cover" />
+            <img
+              src={src}
+              alt={label || "Project preview"}
+              className="w-full h-full object-cover"
+              onLoad={() => setLoaded(true)}
+            />
           ) : (
             <iframe
               src={src}
               title={label || "Project preview"}
               loading="lazy"
               className="w-full h-full"
+              style={{ border: 0 }}
               allow="clipboard-write; fullscreen; autoplay"
+              onLoad={() => setLoaded(true)}
             />
           )}
-        </div>
-
-        {/* Footer with centered CTA */}
-        <div className="relative z-20 border-t border-white/10 bg-[rgba(255,255,255,.05)] backdrop-blur-md">
-          <div className="px-5 py-3 flex items-center justify-center gap-3">
-            {label && <p className="text-[11px] text-white/65">{label}</p>}
-
-            {!!openHref && (
-              <a
-                href={openHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={onVisit}
-                aria-label={`${ctaLabel} ${label || ""}`}
-                className="
-                  inline-flex items-center gap-2 px-4 py-2 rounded-full
-                  text-xs font-medium text-[var(--text)]
-                  bg-[linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.08))]
-                  border border-white/10 ring-1 ring-white/10
-                  shadow-[0_10px_30px_rgba(0,0,0,.25)]
-                  transition-transform duration-200 hover:-translate-y-[1px] focus:outline-none
-                  focus-visible:ring-2 focus-visible:ring-violet-400/60
-                "
-                style={{ pointerEvents: "auto" }}
-              >
-                {ctaLabel}
-                <ExternalLink size={14} />
-              </a>
-            )}
-          </div>
         </div>
       </div>
     </Tilt3D>
   );
 }
 
+/* ---------- Below-preview CTA (outside the card) ---------- */
+function VisitButton({ href, label = "Visit" }) {
+  const open = (e) => {
+    // rock-solid open in new tab
+    if (!href) return;
+    e.preventDefault();
+    window.open(href, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <div className="mt-3 flex justify-center">
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={open}
+        className="
+          inline-flex items-center gap-2 px-5 py-2 rounded-full
+          text-sm font-medium text-[var(--text)]
+          bg-[linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,.08))]
+          border border-white/10 ring-1 ring-white/10
+          shadow-[0_10px_30px_rgba(0,0,0,.25)]
+          transition-transform duration-200 hover:-translate-y-[1px]
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60
+        "
+      >
+        {label}
+        <ExternalLink size={14} />
+      </a>
+    </div>
+  );
+}
+
+/* ---------- Page section ---------- */
 export default function Projects() {
   const previewSrc = "https://www.recruitemee.com/";
   const previewLabel = "RecruiteMee — Live Preview";
@@ -167,12 +195,12 @@ export default function Projects() {
     <Section id="projects" title="Entrepreneurial Projects">
       <div className="grid lg:grid-cols-2 gap-10 items-start">
         <RecruiteMeeCard />
-        <LivePreview3D
-          src={previewSrc}
-          href="https://www.recruitemee.com/"
-          label={previewLabel}
-          ctaLabel="Visit"
-        />
+
+        {/* Right column: preview card + standalone CTA below */}
+        <div>
+          <LivePreviewCard src={previewSrc} label={previewLabel} />
+          <VisitButton href={previewSrc} label="Visit" />
+        </div>
       </div>
     </Section>
   );
