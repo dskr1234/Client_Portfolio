@@ -2,6 +2,7 @@
 import React from "react";
 import Section from "./Section";
 import Tilt3D from "./Tilt3D";
+import { ExternalLink } from "lucide-react";
 
 /* --- One combined project card (intro + description) --- */
 function RecruiteMeeCard() {
@@ -59,19 +60,15 @@ function RecruiteMeeCard() {
           ))}
         </div>
 
-         {/* One-liner */}
+        {/* One-liner */}
         <div className="mt-5">
-          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">
-            About
-          </h4>
+          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">About</h4>
           <p className="text-[var(--text-muted)] leading-relaxed">{oneLiner}</p>
         </div>
 
         {/* Overview bullets */}
         <div className="mt-5">
-          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">
-            Overview
-          </h4>
+          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">Overview</h4>
           <ul className="space-y-1 list-disc list-inside text-sm text-[var(--text-muted)]">
             {bullets.map((b, i) => (
               <li key={i}>{b}</li>
@@ -83,10 +80,11 @@ function RecruiteMeeCard() {
   );
 }
 
-/* --- Right side: live preview frame (kept the same) --- */
-function LivePreview3D({ src, label }) {
+/* --- Right side: live preview frame + Visit CTA --- */
+function LivePreview3D({ src, label, href, ctaLabel = "Visit" }) {
   const isVideo = typeof src === "string" && src.match(/\.(mp4|webm|ogg)$/i);
   const isImage = typeof src === "string" && src.match(/\.(png|jpe?g|gif|webp|avif)$/i);
+  const openHref = href || src; // default to src if you don't pass href
 
   return (
     <Tilt3D className="w-full">
@@ -114,13 +112,29 @@ function LivePreview3D({ src, label }) {
           />
         )}
       </div>
-      <p className="mt-3 text-xs text-center text-white/60">{label}</p>
+
+      {/* label + Visit button */}
+      <div className="mt-3 flex items-center justify-center gap-3">
+        <p className="text-xs text-white/60">{label}</p>
+        {!!openHref && (
+          <a
+            href={openHref}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full
+                       bg-[var(--bg-3)]/80 border border-[var(--border)]
+                       text-xs text-[var(--text)]/85 hover:bg-[var(--bg-3)] transition"
+          >
+            {ctaLabel} <ExternalLink size={14} />
+          </a>
+        )}
+      </div>
     </Tilt3D>
   );
 }
 
 export default function Projects() {
-  // You can swap this to your live demo URL, video, or image
+  // Point this to your deployed app / demo / video, etc.
   const previewSrc = "https://www.recruitemee.com/";
   const previewLabel = "RecruiteMee — Live Preview";
 
@@ -128,7 +142,12 @@ export default function Projects() {
     <Section id="projects" title="Entrepreneurial Projects">
       <div className="grid lg:grid-cols-2 gap-8 items-start">
         <RecruiteMeeCard />
-        <LivePreview3D src={previewSrc} label={previewLabel} />
+        <LivePreview3D
+          src={previewSrc}
+          href="https://www.recruitemee.com/"
+          label={previewLabel}
+          ctaLabel="Visit"
+        />
       </div>
     </Section>
   );
