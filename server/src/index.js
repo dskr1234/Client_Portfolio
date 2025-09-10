@@ -10,51 +10,46 @@ const app = express();
 app.use(express.json());
 
 /* ---------------- CORS ---------------- */
-const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN || "").trim(); // e.g. https://client-portfolio-olive-chi.vercel.app
-const PREVIEW_PREFIX   = (process.env.FRONTEND_PREVIEW_PREFIX || "").trim(); // e.g. client-portfolio-olive-chi
+const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN || "").trim();
+const PREVIEW_PREFIX   = (process.env.FRONTEND_PREVIEW_PREFIX || "").trim();
 const EXTRA_ORIGINS    = (process.env.CORS_ORIGIN || "")
   .split(",")
   .map(s => s.trim())
-  .filter(Boolean); // e.g. http://localhost:5173,http://localhost:5174
+  .filter(Boolean);
 
 const normalize = (u) => {
   if (!u) return "";
   try {
     const { protocol, host } = new URL(u);
-    return `${protocol}//${host}`; // strip any path/trailing slash
+    return `${protocol}//${host}`;
   } catch {
-    return u.replace(/\/+$/, ""); // best-effort
+    return u.replace(/\/+$/, "");
   }
 };
 
 const allowOrigin = (origin) => {
-  if (!origin) return true;                         // SSR/cURL/health checks
+  if (!origin) return true;
   const o = normalize(origin);
   if (o === normalize(FRONTEND_ORIGIN)) return true;
   if (EXTRA_ORIGINS.map(normalize).includes(o)) return true;
-
-  // allow this app's Vercel previews: <prefix>-git-*-*.vercel.app
   try {
     const { hostname } = new URL(origin);
     if (PREVIEW_PREFIX && hostname.endsWith(".vercel.app") && hostname.startsWith(PREVIEW_PREFIX)) {
       return true;
     }
   } catch {}
-
   return false;
 };
 
 const corsOptions = {
-  origin(origin, cb) {
-    cb(null, allowOrigin(origin));
-  },
+  origin(origin, cb) { cb(null, allowOrigin(origin)); },
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: false,
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // explicit preflight
+app.options("*", cors(corsOptions));
 
 /* ---------------- Health ---------------- */
 app.get("/", (_req, res) => res.json({ service: "portfolio-api", ok: true }));
@@ -70,11 +65,9 @@ const ContactSchema = z.object({
 app.post("/api/contact", async (req, res) => {
   try {
     const data = ContactSchema.parse(req.body);
-
     if (!process.env.CONTACT_TO) {
       return res.status(503).json({ error: "CONTACT_TO not configured" });
     }
-
     await sendMail({
       to: process.env.CONTACT_TO,
       subject: `New portfolio message from ${data.name}`,
@@ -85,7 +78,6 @@ app.post("/api/contact", async (req, res) => {
         <p style="white-space:pre-wrap">${data.message}</p>
       `,
     });
-
     res.json({ ok: true });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -135,24 +127,30 @@ app.get("/api/leetcode", async (req, res) => {
 
     const json = await r.json();
 
-    const matched = json?.data?.matchedUser || {};
-    const stats = matched?.submitStatsGlobal?.acSubmissionNum || [];
-    const cal   = matched?.userCalendar || {};
-    const calendarStr = cal?.submissionCalendar || "{}";
-
-    // denominators (total problems)
-    const allCounts = json?.data?.allQuestionsCount || [];
-    const denom = (diff) =>
-      allCounts.find((x) => (x.difficulty || "").toLowerCase() === diff)?.count || 0;
-
+    // ---- denominators (total problems) with robust fallback ----
+    const allCountsRaw = json?.data?.allQuestionsCount || [];
+    const lc = (s) => (s || "").toString().trim().toLowerCase();
+    const byDiff = allCountsRaw.reduce((acc, it) => {
+      const key = lc(it?.difficulty);
+      const count = Number(it?.count ?? 0);
+      if (["all","easy","medium","hard"].includes(key)) acc[key] = count;
+      return acc;
+    }, {});
+    if (byDiff.all == null) {
+      const e = Number(byDiff.easy   ?? 0);
+      const m = Number(byDiff.medium ?? 0);
+      const h = Number(byDiff.hard   ?? 0);
+      byDiff.all = e + m + h;
+    }
     const denoms = {
-      all: denom("all"),
-      easy: denom("easy"),
-      medium: denom("medium"),
-      hard: denom("hard"),
+      all:    Number.isFinite(byDiff.all)    ? byDiff.all    : 0,
+      easy:   Number.isFinite(byDiff.easy)   ? byDiff.easy   : 0,
+      medium: Number.isFinite(byDiff.medium) ? byDiff.medium : 0,
+      hard:   Number.isFinite(byDiff.hard)   ? byDiff.hard   : 0,
     };
 
-    // solved totals
+    // ---- solved totals ----
+    const stats = json?.data?.matchedUser?.submitStatsGlobal?.acSubmissionNum || [];
     const get = (diff) =>
       stats.find((x) => (x.difficulty || "").toLowerCase() === diff)?.count || 0;
 
@@ -164,10 +162,10 @@ app.get("/api/leetcode", async (req, res) => {
     };
 
     // ---- calendar -> series (UTC midnight aligned) ----
-    const calObj = JSON.parse(calendarStr); // { "<epochSecUTC>": count }
-    const DAY = 86400; // seconds
+    const calendarStr = json?.data?.matchedUser?.userCalendar?.submissionCalendar || "{}";
+    const calObj = JSON.parse(calendarStr);
+    const DAY = 86400;
 
-    // normalize to UTC day keys
     const norm = new Map();
     for (const [k, v] of Object.entries(calObj)) {
       const sec = Number(k) || 0;
@@ -176,7 +174,6 @@ app.get("/api/leetcode", async (req, res) => {
       norm.set(dayUTC, (norm.get(dayUTC) || 0) + cnt);
     }
 
-    // contiguous 72-day series ending today (local), looking up by UTC midnight
     const endLocal = new Date(); endLocal.setHours(0, 0, 0, 0);
     const series72 = [];
     for (let i = 71; i >= 0; i--) {
@@ -186,7 +183,6 @@ app.get("/api/leetcode", async (req, res) => {
       series72.push({ ts: d.getTime(), date: d.toISOString().slice(0, 10), count });
     }
 
-    // yearly aggregates
     const entries = Array.from(norm.entries())
       .map(([sec, v]) => ({ sec: Number(sec), v: Number(v) || 0 }))
       .sort((a, b) => a.sec - b.sec);
@@ -194,7 +190,6 @@ app.get("/api/leetcode", async (req, res) => {
     const yearSubmissions = entries.reduce((s, d) => s + d.v, 0);
     const activeDays = entries.filter((d) => d.v > 0).length;
 
-    // robust max streak across the year (UTC)
     let maxStreak = 0, cur = 0;
     const startUTC = Math.floor(Date.UTC(year, 0, 1) / 1000);
     const todayUTC = Math.floor(Date.UTC(
@@ -215,7 +210,7 @@ app.get("/api/leetcode", async (req, res) => {
       activeDays,
       maxStreak,
       series: series72,
-      bars: series72.map((x) => x.count), // compat
+      bars: series72.map((x) => x.count),
       maxDaily,
       maxDailyDate,
     });
