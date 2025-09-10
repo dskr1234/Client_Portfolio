@@ -34,7 +34,7 @@ function LogoBubble({ src, name, size = 56 }) {
   );
 }
 
-/** shared experience card renderer (used for freelance + normal items) */
+/** Reusable experience card (freelance + employment) */
 function ExperienceCard({ item, dotClass = "timeline-dot timeline-dot--exp" }) {
   return (
     <Tilt3D>
@@ -48,13 +48,10 @@ function ExperienceCard({ item, dotClass = "timeline-dot timeline-dot--exp" }) {
         <div className="shine" />
         <span className={dotClass} />
 
-        {/* header — logo first, then text */}
         <div className="flex items-start gap-3 relative z-[1]">
           <LogoBubble src={item.logo} name={item.company} />
           <div className="flex-1 min-w-0">
-            <h4 className="text-lg font-semibold text-[var(--text)] truncate">
-              {item.company}
-            </h4>
+            <h4 className="text-lg font-semibold text-[var(--text)] truncate">{item.company}</h4>
             <p className="text-[var(--text-muted)]">{item.role}</p>
             <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text-muted)] mt-1">
               {item.period && (
@@ -83,10 +80,7 @@ function ExperienceCard({ item, dotClass = "timeline-dot timeline-dot--exp" }) {
         {!!item.stack?.length && (
           <div className="flex flex-wrap gap-2 relative z-[1]">
             {item.stack.map((t) => (
-              <span
-                key={t}
-                className="pill-neo px-2.5 py-1 rounded-full text-xs text-[var(--text)]/85"
-              >
+              <span key={t} className="pill-neo px-2.5 py-1 rounded-full text-xs text-[var(--text)]/85">
                 {t}
               </span>
             ))}
@@ -97,27 +91,89 @@ function ExperienceCard({ item, dotClass = "timeline-dot timeline-dot--exp" }) {
   );
 }
 
+/** Smooth auto-scroll box for coursework; starts when hovered/focused */
+function CourseScroll({ items, heightClass = "h-40 md:h-44" }) {
+  const boxRef = React.useRef(null);
+  const rafRef = React.useRef(null);
+  const dirRef = React.useRef(1);          // 1 => down, -1 => up
+  const hoveringRef = React.useRef(false);
+
+  const step = React.useCallback(() => {
+    const el = boxRef.current;
+    if (!el || !hoveringRef.current) return;
+
+    const max = Math.max(0, el.scrollHeight - el.clientHeight);
+    const speed = 0.6; // px per frame (~36px/s @60fps)
+    let next = el.scrollTop + dirRef.current * speed;
+
+    if (next <= 0) { next = 0; dirRef.current = 1; }
+    if (next >= max) { next = max; dirRef.current = -1; }
+
+    el.scrollTop = next;
+    rafRef.current = requestAnimationFrame(step);
+  }, []);
+
+  const start = React.useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    hoveringRef.current = true;
+    rafRef.current = requestAnimationFrame(step);
+  }, [step]);
+
+  const stop = React.useCallback(() => {
+    hoveringRef.current = false;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+  }, []);
+
+  React.useEffect(() => () => stop(), [stop]);
+
+  return (
+    <div
+      ref={boxRef}
+      className={`course-scroll ${heightClass} overflow-y-auto pr-2 border border-[var(--border)] rounded-xl bg-[var(--bg-2)]`}
+      style={{
+        WebkitOverflowScrolling: "touch",
+        scrollBehavior: "smooth",
+        overscrollBehavior: "contain",
+        scrollbarGutter: "stable both-edges",
+      }}
+      role="region"
+      tabIndex={0}
+      aria-label="Coursework (auto-scrolls on hover)"
+      onMouseEnter={start}
+      onMouseLeave={stop}
+      onFocus={start}
+      onBlur={stop}
+      onWheel={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+    >
+      <ul className="text-sm text-[var(--text-muted)] list-disc list-inside p-3 space-y-1">
+        {items.map((c, i) => (
+          <li key={i}>{c}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function ExperienceEducation() {
   return (
     <Section id="experience" title="Experience & Education">
       <div className="grid lg:grid-cols-2 gap-8">
-        {/* ------------------ LEFT COLUMN ------------------ */}
+        {/* LEFT: separate timelines */}
         <div className="space-y-10">
-          {/* FREELANCE timeline */}
+          {/* Freelance */}
           <div>
             <h3 className="text-sm font-semibold tracking-wide text-[var(--text-muted)] mb-3">
               Freelance Experience
             </h3>
             <div className="relative pl-7 space-y-6">
               <div className="timeline-rail timeline-rail--freelance" />
-              <ExperienceCard
-                item={freelance}
-                dotClass="timeline-dot timeline-dot--freelance"
-              />
+              <ExperienceCard item={freelance} dotClass="timeline-dot timeline-dot--freelance" />
             </div>
           </div>
 
-          {/* EMPLOYMENT timeline */}
+          {/* Employment */}
           <div>
             <h3 className="text-sm font-semibold tracking-wide text-[var(--text-muted)] mb-3">
               Experience
@@ -125,17 +181,13 @@ export default function ExperienceEducation() {
             <div className="relative pl-7 space-y-6">
               <div className="timeline-rail timeline-rail--exp" />
               {experience.map((e, i) => (
-                <ExperienceCard
-                  key={i}
-                  item={e}
-                  dotClass="timeline-dot timeline-dot--exp"
-                />
+                <ExperienceCard key={i} item={e} dotClass="timeline-dot timeline-dot--exp" />
               ))}
             </div>
           </div>
         </div>
 
-        {/* ------------------ RIGHT COLUMN: EDUCATION ------------------ */}
+        {/* RIGHT: Education */}
         <div>
           <h3 className="text-sm font-semibold tracking-wide text-[var(--text-muted)] mb-3">
             Education
@@ -156,60 +208,33 @@ export default function ExperienceEducation() {
                   <div className="shine" />
                   <span className="timeline-dot timeline-dot--edu" />
 
-                  {/* header — logo then school */}
+                  {/* header */}
                   <div className="flex items-start gap-3 relative z-[1]">
                     <LogoBubble src={e.logo} name={e.school} />
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-lg font-bold text-[var(--text)] truncate">
-                        {e.school}
-                      </h4>
-
-                      {/* Start–End → GPA/CGPA line */}
+                      <h4 className="text-lg font-bold text-[var(--text)] truncate">{e.school}</h4>
                       <div className="text-sm text-[var(--text-muted)] mt-1">
-                        {(e.start || e.end) ? (
+                        {(e.start || e.end) && (
                           <span>
-                            {e.start || ""}
-                            {e.start && e.end ? " – " : ""}
-                            {e.end || ""}
+                            {e.start || ""}{e.start && e.end ? " – " : ""}{e.end || ""}
                           </span>
-                        ) : null}
-                        {e.gpaText ? <span> &nbsp;→&nbsp; {e.gpaText}</span> : null}
+                        )}
+                        {e.gpaText && <span> &nbsp;→&nbsp; {e.gpaText}</span>}
                       </div>
                     </div>
                   </div>
 
                   {e.info && (
-                    <p className="text-sm text-[var(--text-muted)] relative z-[1]">
-                      {e.info}
-                    </p>
+                    <p className="text-sm text-[var(--text-muted)] relative z-[1]">{e.info}</p>
                   )}
 
-                  {/* ALL coursework in one smooth, scrollable box */}
+                  {/* Coursework — auto-scroll box */}
                   {Array.isArray(e.coursework) && e.coursework.length > 0 && (
                     <div className="relative z-[1]">
                       <div className="flex items-center gap-2 text-sm text-[var(--text)] font-semibold mb-1">
                         <BookOpen size={16} /> Coursework
                       </div>
-
-                      <div
-                        className="course-scroll max-h-40 md:max-h-44 overflow-y-auto pr-2 border border-[var(--border)] rounded-xl bg-[var(--bg-2)]"
-                        style={{
-                          WebkitOverflowScrolling: "touch",
-                          scrollBehavior: "smooth",
-                          overscrollBehavior: "contain",
-                          scrollbarGutter: "stable both-edges",
-                        }}
-                        tabIndex={0}
-                        onWheel={(e) => e.stopPropagation()}
-                        onTouchMove={(e) => e.stopPropagation()}
-                        aria-label="Coursework (scroll)"
-                      >
-                        <ul className="text-sm text-[var(--text-muted)] list-disc list-inside p-3 space-y-1">
-                          {e.coursework.map((c, j) => (
-                            <li key={j}>{c}</li>
-                          ))}
-                        </ul>
-                      </div>
+                      <CourseScroll items={e.coursework} />
                     </div>
                   )}
                 </motion.div>
