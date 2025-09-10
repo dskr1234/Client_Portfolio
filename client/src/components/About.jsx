@@ -1,109 +1,143 @@
-import React from "react"
-import Section from "./Section"
-import { profile } from "../lib/data"
-import { motion, useSpring } from "framer-motion"
-import { GaugeCircle, Layers, Cloud, ShieldCheck, Rocket, TrendingUp, Workflow, Cpu } from "lucide-react"
+import React from "react";
+import Section from "./Section";
+import Tilt3D from "./Tilt3D";
+import { motion } from "framer-motion";
+import {
+  GaugeCircle, Layers, ShieldCheck, TrendingUp,
+  Briefcase, Globe2, Zap, Users, Rocket
+} from "lucide-react";
 
-function Tilt3D({ children, max = 12, intensity = 8, className = "" }) {
-  const rx = useSpring(0, { stiffness: 220, damping: 18 })
-  const ry = useSpring(0, { stiffness: 220, damping: 18 })
-  const tx = useSpring(0, { stiffness: 250, damping: 22 })
-  const ty = useSpring(0, { stiffness: 250, damping: 22 })
-  const tz = useSpring(0, { stiffness: 200, damping: 18 })
-  function onMove(e){ const el=e.currentTarget, r=el.getBoundingClientRect()
-    const px=(e.clientX-r.left)/r.width, py=(e.clientY-r.top)/r.height
-    ry.set((px-.5)*-2*max); rx.set((py-.5)*2*max)
-    tx.set((px-.5)*intensity); ty.set((py-.5)*intensity); tz.set(8)
-    el.style.setProperty("--mx",`${px*100}%`); el.style.setProperty("--my",`${py*100}%`)
-  }
-  function onLeave(){ rx.set(0); ry.set(0); tx.set(0); ty.set(0); tz.set(0) }
+/* Word-by-word reveal */
+const WordByWord = ({ text, className = "" }) => {
+  const words = text.split(" ");
+  const container = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
+  const child = { hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } };
   return (
-    <motion.div className={`perspective-1200 ${className}`}>
-      <motion.div className="preserve-3d will-change-transform relative" style={{ rotateX:rx, rotateY:ry, x:tx, y:ty, translateZ:tz }} onMouseMove={onMove} onMouseLeave={onLeave}>
-        <div className="shine" />
-        {children}
-      </motion.div>
-    </motion.div>
-  )
-}
-const Bullet = ({ icon:Icon, title, text }) => (
-  <div className="flex items-start gap-3">
-    <div className="p-2 rounded-lg bg-[var(--bg-3)] text-[var(--text)]/70 border border-[var(--border)] shrink-0"><Icon size={16}/></div>
-    <div><div className="font-semibold text-[var(--text)]">{title}</div><div className="text-[var(--text-muted)] text-sm">{text}</div></div>
-  </div>
-)
+    <motion.span
+      variants={container}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, margin: "-12%" }}
+      className={className}
+    >
+      {words.map((w, i) => (
+        <motion.span key={i} variants={child} className="inline-block mr-1">
+          {w}
+        </motion.span>
+      ))}
+    </motion.span>
+  );
+};
 
-export default function About(){
+const Pillar = ({ icon: Icon, title, text }) => (
+  <div className="flex items-start gap-3">
+    <div className="p-2 rounded-lg bg-[var(--bg-3)] text-[var(--text)]/70 border border-[var(--border)] shrink-0">
+      <Icon size={16} />
+    </div>
+    <div>
+      <div className="font-semibold text-[var(--text)]">{title}</div>
+      <div className="text-[var(--text-muted)] text-sm">{text}</div>
+    </div>
+  </div>
+);
+
+const SmallCard = ({ icon: Icon, title, text }) => (
+  <Tilt3D>
+    <div className="card-neo rounded-[20px] p-5 space-y-2 h-full">
+      <div className="flex items-center gap-2 font-semibold text-[var(--text)]">
+        <Icon size={16} /> {title}
+      </div>
+      <p className="text-sm text-[var(--text-muted)]">{text}</p>
+    </div>
+  </Tilt3D>
+);
+
+export default function About() {
   return (
     <Section id="about" title="About">
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-5">
-          <Tilt3D>
-            <motion.div initial={{opacity:0,y:14}} whileInView={{opacity:1,y:0}} viewport={{once:true,margin:"-12%"}} transition={{duration:.55}} className="card-neo rounded-[24px] p-6 md:p-8 space-y-4">
-              <div className="text-lg leading-relaxed text-[var(--text)]">
-                I’m an M.S. CS student at the <strong>University of Dayton</strong>, specializing in <strong>Python development</strong> and <strong>Data Structures & Algorithms</strong>. Previously at <strong>Accenture</strong>, I shipped production features ahead of schedule and fixed performance bottlenecks end-to-end.
-              </div>
-              <div className="text-[var(--text-muted)] leading-relaxed">
-                On the front-end, I craft **React/TypeScript** experiences with motion and design-system discipline. On the back-end, I build **Node/Express** and **Python (Flask/Django)** services with clean contracts, caching, and observability. I balance **cloud pragmatism** (AWS + CI/CD) for the US market with **reliability & cost-efficiency** important in India.
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4 pt-2">
-                <Bullet icon={GaugeCircle} title="Performance first" text="Cut API p95 from 800ms → 500ms with query tuning & caching; shipped UI micro-perf wins."/>
-                <Bullet icon={Layers} title="Sound architecture" text="Typed APIs, modular front-ends, clean data boundaries, safe rollouts."/>
-                <Bullet icon={Cloud} title="Cloud practical" text="AWS ECS/Lambda, S3/CloudFront, RDS, CloudWatch; cost-aware configs."/>
-                <Bullet icon={ShieldCheck} title="Quality that scales" text="Tests where ROI is real, CI checks, observability & alert hygiene."/>
-              </div>
-
-              <div className="flex flex-wrap gap-2 pt-2">
-                <span className="pill-neo px-2.5 py-1 rounded-full text-xs text-[var(--text)]/80">Python · Flask/Django</span>
-                <span className="pill-neo px-2.5 py-1 rounded-full text-xs text-[var(--text)]/80">DSA & Problem-Solving</span>
-                <span className="pill-neo px-2.5 py-1 rounded-full text-xs text-[var(--text)]/80">MERN + TypeScript</span>
-                <span className="pill-neo px-2.5 py-1 rounded-full text-xs text-[var(--text)]/80">System Design Basics</span>
-              </div>
-            </motion.div>
-          </Tilt3D>
-
-          <div className="grid sm:grid-cols-2 gap-6">
-            <Tilt3D>
-              <div className="card-neo rounded-[20px] p-5 space-y-3">
-                <div className="flex items-center gap-2 font-semibold text-[var(--text)]"><Rocket size={16}/> What I’m great at</div>
-                <ul className="text-sm text-[var(--text-muted)] list-disc list-inside space-y-1">
-                  <li>React + motion for premium UX</li>
-                  <li>Node/Python APIs with crisp contracts & caching</li>
-                  <li>Data modeling & SQL performance basics</li>
-                  <li>Feature flags, CI/CD, and dev-speed tooling</li>
-                </ul>
-              </div>
-            </Tilt3D>
-
-            <Tilt3D>
-              <div className="card-neo rounded-[20px] p-5 space-y-3">
-                <div className="flex items-center gap-2 font-semibold text-[var(--text)]"><TrendingUp size={16}/> What I’m investing in next</div>
-                <ul className="text-sm text-[var(--text-muted)] list-disc list-inside space-y-1">
-                  <li>Production-grade TypeScript across the stack</li>
-                  <li>Queue-backed workflows (BullMQ/SQS) & retries</li>
-                  <li>Edge/perf: HTTP/2, compression, prefetch, images</li>
-                  <li>LLM-adjacent features (summaries, assist, RAG-lite)</li>
-                </ul>
-              </div>
-            </Tilt3D>
-          </div>
-        </div>
-
+      <div className="space-y-6">
+        {/* === BIG COMBINED CARD: intro paragraphs + Four Pillars === */}
         <Tilt3D>
-          <div className="card-neo rounded-[24px] p-5 md:p-6 space-y-4 h-full">
-            <div className="space-y-2 text-[var(--text)]">
-              <div><span className="text-[var(--text-muted)]">Based:</span> <span className="font-semibold">{profile.location}</span></div>
-              <div><span className="text-[var(--text-muted)]">Email:</span> <a className="underline" href={`mailto:${profile.links.email}`}>{profile.links.email}</a></div>
-              <div><span className="text-[var(--text-muted)]">Open to:</span> SDE-1 · Full-stack · Backend</div>
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-12%" }}
+            transition={{ duration: 0.55 }}
+            className="card-neo rounded-[24px] p-6 md:p-8 space-y-6"
+          >
+            {/* Intro text */}
+            <div className="space-y-4">
+              <p className="text-lg leading-relaxed text-[var(--text)]">
+                <WordByWord text="I’m an M.S. Computer Science student at the University of Dayton with a strong foundation in problem-solving and a passion for turning ideas into products. My journey has been a mix of industry exposure at Accenture, academic depth in algorithms and systems, and entrepreneurial drive through my startup project RecruiteMee." />
+              </p>
+              <p className="text-[var(--text-muted)] leading-relaxed">
+                <WordByWord text="What excites me most is building things that scale — whether that’s shaving seconds off backend latency, crafting seamless user experiences, or exploring how AI and LLMs can power the next generation of applications. I enjoy bridging the gap between academic theory and real-world engineering, learning continuously while shipping projects that matter." />
+              </p>
+              <p className="text-[var(--text-muted)] leading-relaxed">
+                <WordByWord text="I’m currently preparing for roles at product-based companies where I can grow as an engineer, contribute to large-scale systems, and learn from world-class teams." />
+              </p>
             </div>
-            <div className="border-t border-[var(--border)] pt-4 space-y-2 text-sm text-[var(--text-muted)]">
-              <div className="flex items-center gap-2"><Workflow size={14}/> Built & shipped features used by 200+ users</div>
-              <div className="flex items-center gap-2"><Cpu size={14}/> Improved p95 latency by ~30%</div>
+
+            {/* Four pillars inside the same container */}
+            <div>
+              <div className="flex items-center gap-2 font-semibold text-[var(--text)] mb-3">
+                <Zap size={16} /> ⚡ Four Pillars I Believe In
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Pillar
+                  icon={GaugeCircle}
+                  title="Build for Performance"
+                  text="Fast, efficient, and reliable code is the foundation of world-class software."
+                />
+                <Pillar
+                  icon={Layers}
+                  title="Think in Systems"
+                  text="Every feature should fit into a bigger architecture that can grow and evolve."
+                />
+                <Pillar
+                  icon={TrendingUp}
+                  title="Engineer for Scale"
+                  text="Design with millions of users in mind — leveraging cloud and modern practices."
+                />
+                <Pillar
+                  icon={ShieldCheck}
+                  title="Ship with Quality"
+                  text="Test, monitor, and deliver products that earn trust with every release."
+                />
+              </div>
             </div>
-          </div>
+          </motion.div>
         </Tilt3D>
+
+        {/* === FIVE SEPARATE CARDS BELOW — full-width grid === */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <SmallCard
+            icon={Briefcase}
+            title="Open Roles"
+            text="Excited for Software Engineer (SDE-1), Full-Stack, Backend, Cloud, or related roles in the USA."
+          />
+          <SmallCard
+            icon={Globe2}
+            title="Global Perspective"
+            text="Proud international student — adaptive, growth-oriented, and bringing a diverse mindset to every challenge."
+          />
+          <SmallCard
+            icon={Zap}
+            title="My Mindset"
+            text="Curiosity fuels me; learning drives me; building for scale keeps me moving forward."
+          />
+          <SmallCard
+            icon={Users}
+            title="Team Player"
+            text="I celebrate teamwork — coordinate early, think ahead, and help teams achieve more together."
+          />
+          <SmallCard
+            icon={Rocket}
+            title="What I’ll Contribute"
+            text="Energy, ownership, and a builder’s spirit — delivering impact from day one."
+          />
+        </div>
       </div>
     </Section>
-  )
+  );
 }
