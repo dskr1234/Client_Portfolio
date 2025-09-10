@@ -22,13 +22,7 @@ function Gauge3D({ value = 0, denom }) {
     <Tilt3D className="h-full">
       <div className="relative overflow-hidden card-neo rounded-[24px] p-6 grid place-items-center">
         <div className="shine" />
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -inset-px rounded-[24px] p-[1px] opacity-30
-                     bg-[conic-gradient(from_0deg,rgba(99,102,241,.5),rgba(168,85,247,.5),rgba(34,211,238,.45),rgba(99,102,241,.5))]
-                     [mask:linear-gradient(#000_0_0)_content-box,linear-gradient(#000_0_0)]
-                     [mask-composite:exclude] animate-spin-slow"
-        />
+        <span aria-hidden className="pointer-events-none absolute -inset-px rounded-[24px] p-[1px] opacity-30 bg-[conic-gradient(from_0deg,rgba(99,102,241,.5),rgba(168,85,247,.5),rgba(34,211,238,.45),rgba(99,102,241,.5))] [mask:linear-gradient(#000_0_0)_content-box,linear-gradient(#000_0_0)] [mask-composite:exclude] animate-spin-slow" />
         <div className="relative w-48 h-48">
           <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90">
             <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(0,0,0,.06)" className="dark:stroke-[rgba(255,255,255,.08)]" strokeWidth="3" />
@@ -38,10 +32,7 @@ function Gauge3D({ value = 0, denom }) {
                 <stop offset="100%" stopColor="rgb(34,211,238)" />
               </linearGradient>
             </defs>
-            <motion.circle
-              cx="20" cy="20" r="16" fill="none" stroke="url(#lcGrad)" strokeLinecap="round" strokeWidth="3"
-              initial={{ pathLength: 0 }} animate={{ pathLength: pct / 100 }} transition={{ duration: 1.2, ease: "easeOut" }}
-            />
+            <motion.circle cx="20" cy="20" r="16" fill="none" stroke="url(#lcGrad)" strokeLinecap="round" strokeWidth="3" initial={{ pathLength: 0 }} animate={{ pathLength: pct / 100 }} transition={{ duration: 1.2, ease: "easeOut" }} />
           </svg>
           <div className="absolute inset-0 grid place-items-center">
             <div className="text-center">
@@ -79,45 +70,33 @@ function StatCard({ label, value, denom, Icon }) {
   );
 }
 
-/* ---------- Build full-year heatmap (Sun->Sat columns) ---------- */
+/* ===== Full-year, week-aligned heatmap ===== */
 function useYearHeatmap(calendarYear) {
-  // Map date -> count for O(1) lookups
   const map = new Map((calendarYear || []).map(d => [d.date, d.count]));
-
   const today = new Date(); today.setHours(0,0,0,0);
-  // Start = 52 weeks back (approx 364 days), aligned to Sunday so the last col is current week
-  const weekStartOfToday = new Date(today);
-  weekStartOfToday.setDate(today.getDate() - today.getDay()); // Sunday
 
-  const start = new Date(weekStartOfToday);
-  start.setDate(weekStartOfToday.getDate() - 52 * 7); // 53 columns total (0..52)
-  const cols = 53; // LC shows ~53 week columns
+  // Align to Sunday; last column is the current week
+  const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
+  const start = new Date(weekStart); start.setDate(weekStart.getDate() - 52 * 7); // 53 columns like LC
+  const cols = 53;
 
-  const weeks = Array.from({ length: cols }, () => Array(7).fill({ v: 0, date: "", isToday: false }));
+  const weeks = Array.from({ length: cols }, () => Array(7).fill(null));
   const monthLabels = Array(cols).fill("");
 
   for (let w = 0; w < cols; w++) {
     for (let d = 0; d < 7; d++) {
-      const cell = new Date(start);
-      cell.setDate(start.getDate() + w * 7 + d);
-      const key = cell.toISOString().slice(0, 10);
+      const dt = new Date(start); dt.setDate(start.getDate() + w*7 + d);
+      const key = dt.toISOString().slice(0,10);
       const v = map.get(key) || 0;
-      const isToday = cell.getTime() === today.getTime();
+      const isToday = dt.getTime() === today.getTime();
       weeks[w][d] = { v, date: key, isToday };
     }
-
-    // month label at the first week that starts a new month
-    const firstOfCol = new Date(start);
-    firstOfCol.setDate(start.getDate() + w * 7);
-    const label = firstOfCol.toLocaleString(undefined, { month: "short" });
-    if (w === 0) monthLabels[w] = label;
-    else {
-      const prev = new Date(start); prev.setDate(start.getDate() + (w - 1) * 7);
-      const prevLabel = prev.toLocaleString(undefined, { month: "short" });
-      if (label !== prevLabel) monthLabels[w] = label;
-    }
+    // month tick when the week enters a new month
+    const first = new Date(start); first.setDate(start.getDate() + w*7);
+    const prev  = new Date(start); prev.setDate(start.getDate() + (w-1)*7);
+    const label = first.toLocaleString(undefined, { month: "short" });
+    if (w === 0 || label !== prev.toLocaleString(undefined, { month: "short" })) monthLabels[w] = label;
   }
-
   return { weeks, monthLabels };
 }
 
@@ -132,33 +111,22 @@ export default function LeetCodeSection() {
         const r = await fetch(`/api/leetcode?username=${encodeURIComponent(username)}`);
         const j = await r.json();
         setData(j);
-      } catch (e) {
-        console.error(e);
-      }
+      } catch (e) { console.error(e); }
     };
     go();
   }, [username]);
 
-  // 72-day series (still used for some stats / fallback)
-  const series = useMemo(() => {
-    if (Array.isArray(data?.series)) return data.series;
-    return [];
-  }, [data]);
-
-  const totals = data?.totals  || { solved: 0, easy: 0, medium: 0, hard: 0 };
-  const denoms = data?.denoms  || {};
+  const totals = data?.totals || { solved: 0, easy: 0, medium: 0, hard: 0 };
+  const denoms = data?.denoms || {};
 
   const { weeks, monthLabels } = useYearHeatmap(data?.calendarYear || []);
 
-  const bars = series.map(s => s.count);
+  const bars = (data?.series || []).map(s => s.count);
   const maxDaily = data?.maxDaily ?? Math.max(0, ...bars, 0);
-  const maxDailyDate = data?.maxDailyDate || (series.length ? series[bars.indexOf(maxDaily)]?.date : null);
+  const maxDailyDate = data?.maxDailyDate || null;
+  const totalInYear = data?.yearSubmissions ?? 0;
+  const activeDaysYear = data?.activeDays ?? 0;
 
-  // screenshot-style summary line
-  const totalInYear = data?.yearSubmissions ?? (data?.calendarYear || []).reduce((s, d) => s + (d?.count || 0), 0);
-  const activeDaysYear = data?.activeDays ?? (data?.calendarYear || []).filter(d => d.count > 0).length;
-
-  // GREEN palette like LC (better readability)
   const cellClass = (v) =>
     v >= 10 ? "bg-emerald-600/90" :
     v >= 6  ? "bg-emerald-500/85" :
@@ -176,12 +144,7 @@ export default function LeetCodeSection() {
           <h3 className="text-2xl md:text-3xl font-extrabold tracking-tight">LeetCode Dashboard</h3>
         </div>
         {!!username && (
-          <a
-            className="inline-flex items-center gap-1 text-sm text-theme-muted hover:underline"
-            href={`https://leetcode.com/${username}/`}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a className="inline-flex items-center gap-1 text-sm text-theme-muted hover:underline" href={`https://leetcode.com/${username}/`} target="_blank" rel="noreferrer">
             View Profile <ExternalLink size={14} />
           </a>
         )}
@@ -189,7 +152,6 @@ export default function LeetCodeSection() {
 
       <div className="grid lg:grid-cols-[320px_1fr] gap-6">
         <Gauge3D value={totals.solved} denom={denoms?.all ?? null} />
-
         <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
           <StatCard label="Easy"   value={totals.easy}   denom={denoms?.easy   ?? null} Icon={Smile} />
           <StatCard label="Medium" value={totals.medium} denom={denoms?.medium ?? null} Icon={GaugeCircle} />
@@ -200,13 +162,12 @@ export default function LeetCodeSection() {
         </div>
       </div>
 
-      {/* ========== Full-year heatmap (53 weeks × 7 rows) ========== */}
+      {/* ===== Full-year heatmap (53 weeks × 7 rows) ===== */}
       <Tilt3D className="mt-6">
         <div className="relative overflow-hidden card-neo rounded-[20px] p-5">
           <div className="shine" />
 
           <div className="flex items-start gap-4">
-            {/* grid */}
             <div className="grid" style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0,1fr))`, gap: "4px" }}>
               {weeks.map((week, wi) => (
                 <div key={wi} className="grid grid-rows-7 gap-1">
@@ -225,7 +186,7 @@ export default function LeetCodeSection() {
               ))}
             </div>
 
-            {/* legend (Less → More) */}
+            {/* Legend */}
             <div className="hidden sm:block text-[10px] text-theme-subtle mt-1">
               <div className="mb-1">Less</div>
               <div className="flex items-center gap-1">
@@ -239,20 +200,22 @@ export default function LeetCodeSection() {
             </div>
           </div>
 
-          {/* month labels under grid */}
+          {/* month ticks */}
           <div className="mt-2 grid" style={{ gridTemplateColumns: `repeat(${monthLabels.length}, minmax(0,1fr))` }}>
             {monthLabels.map((m, i) => (
               <div key={i} className="text-center text-[10px] text-theme-subtle">{m}</div>
             ))}
           </div>
 
-          {/* screenshot-style summary line */}
+          {/* summary line */}
           <div className="mt-3 text-xs text-theme-subtle">
             <span className="font-semibold text-theme">{totalInYear}</span> submissions in the past one year
             <span className="mx-2">•</span>
             Total active days: <span className="font-semibold text-theme">{activeDaysYear}</span>
             <span className="mx-2">•</span>
             Max streak: <span className="font-semibold text-theme">{data?.maxStreak ?? 0}</span>
+            {maxDaily ? <span className="mx-2">•</span> : null}
+            {maxDaily ? <>Max/day {maxDaily}{maxDailyDate ? ` on ${new Date(maxDailyDate).toLocaleDateString()}` : ""}</> : null}
           </div>
         </div>
       </Tilt3D>
