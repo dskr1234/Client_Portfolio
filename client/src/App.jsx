@@ -7,7 +7,6 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import LeftRail from "./components/LeftRail";
 import LeetCodeSection from "./components/LeetCodeSection";
 import ExperienceEducation from "./components/ExperienceEducation";
-import FuturePlans from "./components/FuturePlans"; // <-- NEW
 
 const Hero = lazy(() => import("./components/Hero"));
 const About = lazy(() => import("./components/About"));
@@ -34,8 +33,7 @@ export default function App() {
                 <Hero />
               </Suspense>
             </section>
-            <FuturePlans />
-
+            
             <Suspense fallback={<Fallback />}>
               <About />
             </Suspense>
