@@ -67,7 +67,10 @@ function StatCard({ label, value, denom, Icon }) {
           <span className="text-theme-muted">{label}</span>
         </div>
         <div className="text-2xl font-semibold text-theme leading-tight">
-          <CountUp to={value ?? 0} />{denom ? <span className="text-sm text-theme-subtle"> / {denom}</span> : null}
+          <CountUp to={value ?? 0} />
+          {typeof denom === "number" ? (
+            <span className="text-sm text-theme-subtle"> / {denom}</span>
+          ) : null}
         </div>
       </div>
     </Tilt3D>
@@ -122,6 +125,10 @@ export default function LeetCodeSection() {
 
   const maxDaily = data?.maxDaily ?? Math.max(0, ...bars);
   const maxDailyDate = data?.maxDailyDate || series[bars.indexOf(maxDaily)]?.date || null;
+
+  // submission track summary for the 72-day window
+  const totalInWindow = bars.reduce((s, v) => s + v, 0);
+  const activeDaysWindow = bars.filter(v => v > 0).length;
 
   return (
     <section id="leetcode" className="soft-2 rounded-[28px] neo p-6">
@@ -188,8 +195,10 @@ export default function LeetCodeSection() {
             ))}
           </div>
 
+          {/* Submission Track summary */}
           <div className="mt-3 text-xs text-theme-subtle">
-            Max/day in window: <span className="font-semibold text-theme">{maxDaily}</span>
+            <span className="font-semibold text-theme">Submission Track:</span>{" "}
+            {totalInWindow} total · {activeDaysWindow} active days · max/day {maxDaily}
             {maxDailyDate ? ` on ${new Date(maxDailyDate).toLocaleDateString()}` : ""}
           </div>
         </div>
