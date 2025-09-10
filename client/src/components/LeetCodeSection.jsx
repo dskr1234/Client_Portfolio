@@ -38,7 +38,7 @@ function Gauge3D({ value = 0, denom }) {
             <div className="text-center">
               <CountUp to={value} className="text-3xl font-extrabold text-theme" />
               <div className="text-xs text-theme-muted">
-                Solved{denom !== undefined && denom !== null ? ` / ${denom}` : ""}
+                {"Solved"}{denom !== undefined && denom !== null ? ` / ${denom}` : ""}
               </div>
             </div>
           </div>
@@ -70,14 +70,14 @@ function StatCard({ label, value, denom, Icon }) {
   );
 }
 
-/* ===== Full-year, week-aligned heatmap ===== */
+/* === Build week-aligned grid from 53*7 rolling array === */
 function useYearHeatmap(calendarYear) {
-  const map = new Map((calendarYear || []).map(d => [d.date, d.count]));
-  const today = new Date(); today.setHours(0,0,0,0);
+  // Make lookup for counts
+  const map = new Map((calendarYear || []).map((d) => [d.date, d.count]));
 
-  // Align to Sunday; last column is the current week
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
-  const start = new Date(weekStart); start.setDate(weekStart.getDate() - 52 * 7); // 53 columns like LC
+  const start = new Date(weekStart); start.setDate(weekStart.getDate() - 52 * 7);
   const cols = 53;
 
   const weeks = Array.from({ length: cols }, () => Array(7).fill(null));
@@ -85,15 +85,13 @@ function useYearHeatmap(calendarYear) {
 
   for (let w = 0; w < cols; w++) {
     for (let d = 0; d < 7; d++) {
-      const dt = new Date(start); dt.setDate(start.getDate() + w*7 + d);
-      const key = dt.toISOString().slice(0,10);
+      const dt = new Date(start); dt.setDate(start.getDate() + w * 7 + d);
+      const key = dt.toISOString().slice(0, 10);
       const v = map.get(key) || 0;
-      const isToday = dt.getTime() === today.getTime();
-      weeks[w][d] = { v, date: key, isToday };
+      weeks[w][d] = { v, date: key, isToday: dt.getTime() === today.getTime() };
     }
-    // month tick when the week enters a new month
-    const first = new Date(start); first.setDate(start.getDate() + w*7);
-    const prev  = new Date(start); prev.setDate(start.getDate() + (w-1)*7);
+    const first = new Date(start); first.setDate(start.getDate() + w * 7);
+    const prev = new Date(start); prev.setDate(start.getDate() + (w - 1) * 7);
     const label = first.toLocaleString(undefined, { month: "short" });
     if (w === 0 || label !== prev.toLocaleString(undefined, { month: "short" })) monthLabels[w] = label;
   }
@@ -119,13 +117,14 @@ export default function LeetCodeSection() {
   const totals = data?.totals || { solved: 0, easy: 0, medium: 0, hard: 0 };
   const denoms = data?.denoms || {};
 
+  // **use rolling calendar from API**
   const { weeks, monthLabels } = useYearHeatmap(data?.calendarYear || []);
 
-  const bars = (data?.series || []).map(s => s.count);
-  const maxDaily = data?.maxDaily ?? Math.max(0, ...bars, 0);
+  const maxDaily = data?.maxDaily ?? 0;
   const maxDailyDate = data?.maxDailyDate || null;
-  const totalInYear = data?.yearSubmissions ?? 0;
-  const activeDaysYear = data?.activeDays ?? 0;
+
+  const rollingSubmissions = data?.rollingSubmissions ?? 0;
+  const rollingActiveDays = data?.rollingActiveDays ?? 0;
 
   const cellClass = (v) =>
     v >= 10 ? "bg-emerald-600/90" :
@@ -162,7 +161,7 @@ export default function LeetCodeSection() {
         </div>
       </div>
 
-      {/* ===== Full-year heatmap (53 weeks × 7 rows) ===== */}
+      {/* ===== Rolling 1-year heatmap (53 weeks × 7 rows) ===== */}
       <Tilt3D className="mt-6">
         <div className="relative overflow-hidden card-neo rounded-[20px] p-5">
           <div className="shine" />
@@ -207,15 +206,12 @@ export default function LeetCodeSection() {
             ))}
           </div>
 
-          {/* summary line */}
+          {/* summary line for rolling window */}
           <div className="mt-3 text-xs text-theme-subtle">
-            <span className="font-semibold text-theme">{totalInYear}</span> submissions in the past one year
+            <span className="font-semibold text-theme">{rollingSubmissions}</span> submissions in the past one year
             <span className="mx-2">•</span>
-            Total active days: <span className="font-semibold text-theme">{activeDaysYear}</span>
-            <span className="mx-2">•</span>
-            Max streak: <span className="font-semibold text-theme">{data?.maxStreak ?? 0}</span>
-            {maxDaily ? <span className="mx-2">•</span> : null}
-            {maxDaily ? <>Max/day {maxDaily}{maxDailyDate ? ` on ${new Date(maxDailyDate).toLocaleDateString()}` : ""}</> : null}
+            Total active days: <span className="font-semibold text-theme">{rollingActiveDays}</span>
+            {maxDaily ? <><span className="mx-2">•</span>Max/day {maxDaily}{maxDailyDate ? ` on ${new Date(maxDailyDate).toLocaleDateString()}` : ""}</> : null}
           </div>
         </div>
       </Tilt3D>
