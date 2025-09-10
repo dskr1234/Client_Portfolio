@@ -136,6 +136,12 @@ export default function About() {
             title="What I’ll Contribute"
             text="Energy, ownership, and a builder’s spirit — delivering impact from day one."
           />
+          <SmallCard
+  icon={Lightbulb}
+  title="Learning > Ego"
+  text="Stay curious, seek feedback early, and adapt fast — progress beats perfection."
+/>
+
         </div>
       </div>
     </Section>
