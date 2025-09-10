@@ -80,38 +80,51 @@ function StatCard({ label, value, denom, Icon }) {
   );
 }
 
-/* map 72-day series -> 12 weeks x 7 rows (GitHub-style) */
+/* === Week-aligned (Sun→Sat) heatmap builder ===
+   - 12 columns (weeks), 7 rows (days)
+   - Last column is the *current* week (contains today)
+*/
 function useWeeklyHeatmap(series) {
-  // Build a map dateStr -> count for O(1) lookups
-  const byDate = new Map(series.map(d => [d.date, d.count]));
-  const last = series[series.length - 1]?.ts ? new Date(series[series.length - 1].ts) : new Date();
-  last.setHours(0,0,0,0);
+  const map = new Map(series.map(d => [d.date, d.count]));
+  const today = new Date(); today.setHours(0,0,0,0);
 
-  // We want 12 columns (weeks), left -> right old -> new
-  const weeks = Array.from({ length: 12 }, () => Array(7).fill(0));
-  const labels = Array(12).fill(""); // month labels per column
+  // Align to week starting Sunday; last column = current week
+  const weekStartOfToday = new Date(today);
+  weekStartOfToday.setDate(today.getDate() - today.getDay()); // Sunday of this week
 
-  // Start from 11 weeks ago, fill day by day
-  const start = new Date(last);
-  start.setDate(start.getDate() - (12 * 7 - 1)); // 83 days back
+  // Start 11 weeks before current week
+  const start = new Date(weekStartOfToday);
+  start.setDate(weekStartOfToday.getDate() - 11 * 7);
 
-  for (let i = 0; i < 12 * 7; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    const weekIdx = Math.floor(i / 7);
-    const dayIdx = d.getDay(); // 0..6 (Sun..Sat)
-    const key = d.toISOString().slice(0, 10);
-    weeks[weekIdx][dayIdx] = byDate.get(key) || 0;
+  const weeks = Array.from({ length: 12 }, () => Array(7).fill({ v: 0, date: "", isToday: false }));
+  const monthLabels = Array(12).fill("");
 
-    // month label once per column (when Monday or first day)
-    if (dayIdx === 1 || i === 0) {
-      const label = d.toLocaleString(undefined, { month: "short" });
-      // Only set if month changed vs previous column
-      if (weekIdx === 0 || labels[weekIdx - 1] !== label) labels[weekIdx] = label;
+  for (let w = 0; w < 12; w++) {
+    for (let d = 0; d < 7; d++) {
+      const cellDate = new Date(start);
+      cellDate.setDate(start.getDate() + w * 7 + d);
+      const key = cellDate.toISOString().slice(0, 10);
+      const v = map.get(key) || 0;
+      const isToday =
+        cellDate.getTime() === today.getTime(); // exact midnight local comparison
+
+      weeks[w][d] = { v, date: key, isToday };
+    }
+
+    // month label once per column, when month changes vs previous column
+    const firstOfCol = new Date(start);
+    firstOfCol.setDate(start.getDate() + w * 7);
+    const label = firstOfCol.toLocaleString(undefined, { month: "short" });
+    if (w === 0) monthLabels[w] = label;
+    else {
+      const prevFirst = new Date(start);
+      prevFirst.setDate(start.getDate() + (w - 1) * 7);
+      const prevLabel = prevFirst.toLocaleString(undefined, { month: "short" });
+      if (label !== prevLabel) monthLabels[w] = label;
     }
   }
 
-  return { weeks, labels };
+  return { weeks, monthLabels };
 }
 
 export default function LeetCodeSection() {
@@ -146,7 +159,7 @@ export default function LeetCodeSection() {
   const totals = data?.totals  || { solved: 0, easy: 0, medium: 0, hard: 0 };
   const denoms = data?.denoms  || {};
 
-  const { weeks, labels: monthLabels } = useWeeklyHeatmap(series);
+  const { weeks, monthLabels } = useWeeklyHeatmap(series);
 
   const maxDaily = data?.maxDaily ?? Math.max(0, ...bars);
   const maxDailyDate = data?.maxDailyDate || series[bars.indexOf(maxDaily)]?.date || null;
@@ -154,7 +167,6 @@ export default function LeetCodeSection() {
   const totalInWindow = bars.reduce((s, v) => s + v, 0);
   const activeDaysWindow = bars.filter(v => v > 0).length;
 
-  // color for blocks
   const cellClass = (v) =>
     v >= 10 ? "bg-fuchsia-500/85" :
     v >= 6  ? "bg-violet-500/80"  :
@@ -196,7 +208,7 @@ export default function LeetCodeSection() {
         </div>
       </div>
 
-      {/* === Heatmap (12 weeks x 7 rows) === */}
+      {/* === Heatmap (12 weekly columns, up-to-date) === */}
       <Tilt3D className="mt-6">
         <div className="relative overflow-hidden card-neo rounded-[20px] p-5">
           <div className="shine" />
@@ -206,15 +218,15 @@ export default function LeetCodeSection() {
             <div className="grid grid-cols-12 gap-1">
               {weeks.map((week, wi) => (
                 <div key={wi} className="grid grid-rows-7 gap-1">
-                  {week.map((v, di) => (
+                  {week.map((cell, di) => (
                     <motion.div
                       key={di}
                       initial={{ opacity: 0, scale: 0.95, y: 4 }}
                       whileInView={{ opacity: 1, scale: 1, y: 0 }}
                       viewport={{ once: true, margin: "-12%" }}
                       transition={{ duration: 0.18, ease: "easeOut" }}
-                      className={`${cellClass(v)} w-3.5 h-3.5 rounded-[4px]`}
-                      title={`${v} submission${v === 1 ? "" : "s"}`}
+                      className={`${cellClass(cell.v)} w-3.5 h-3.5 rounded-[4px] ${cell.isToday ? "ring-2 ring-[var(--ring)]" : ""}`}
+                      title={`${cell.date}: ${cell.v} submission${cell.v === 1 ? "" : "s"}`}
                     />
                   ))}
                 </div>
@@ -245,7 +257,7 @@ export default function LeetCodeSection() {
           {/* Submission Track summary */}
           <div className="mt-3 text-xs text-theme-subtle">
             <span className="font-semibold text-theme">Submission Track:</span>{" "}
-            {totalInWindow} total · {activeDaysWindow} active days · max/day {maxDaily}
+            {bars.reduce((s, v) => s + v, 0)} total · {bars.filter(v => v > 0).length} active days · max/day {maxDaily}
             {maxDailyDate ? ` on ${new Date(maxDailyDate).toLocaleDateString()}` : ""}
           </div>
         </div>
