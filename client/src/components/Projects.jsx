@@ -1,5 +1,5 @@
 // src/components/Projects.jsx
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Section from "./Section";
 import Tilt3D from "./Tilt3D";
 import { ExternalLink } from "lucide-react";
@@ -62,17 +62,13 @@ function RecruiteMeeCard() {
 
         {/* One-liner */}
         <div className="mt-5">
-          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">
-            About
-          </h4>
+          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">About</h4>
           <p className="text-[var(--text-muted)] leading-relaxed">{oneLiner}</p>
         </div>
 
         {/* Overview bullets */}
         <div className="mt-5">
-          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">
-            Overview
-          </h4>
+          <h4 className="text-[13px] font-semibold text-[var(--text)]/90 mb-1">Overview</h4>
           <ul className="space-y-1 list-disc list-inside text-sm text-[var(--text-muted)]">
             {bullets.map((b, i) => (
               <li key={i}>{b}</li>
@@ -84,71 +80,38 @@ function RecruiteMeeCard() {
   );
 }
 
-/* ---------- Right: preview card (iframe/image/video with fallback) ---------- */
-function LivePreviewCard({ src, label }) {
-  const [loaded, setLoaded] = useState(false);
-  const [blocked, setBlocked] = useState(false);
-
-  // If an iframe is blocked by X-Frame-Options/CSP, we won't get an error event.
-  // Use a small timeout; if nothing signals "loaded", assume blocked and show fallback.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (!loaded) setBlocked(true);
-    }, 1800);
-    return () => clearTimeout(t);
-  }, [loaded]);
-
+/* ---------- Right: reference-style live previewer (iframe/image/video) ---------- */
+function LivePreview3D({ src, label }) {
   const isVideo = typeof src === "string" && /\.(mp4|webm|ogg)$/i.test(src);
   const isImage = typeof src === "string" && /\.(png|jpe?g|gif|webp|avif)$/i.test(src);
 
   return (
     <Tilt3D className="w-full">
       <div className="relative card-neo rounded-[24px] overflow-hidden">
-        <div className="shine pointer-events-none" />
-
-        <div className="relative h-[420px] bg-[var(--bg)]">
-          {blocked ? (
-            <div className="absolute inset-0 grid place-items-center p-6 text-center">
-              <div className="max-w-sm">
-                <div className="text-sm font-semibold text-[var(--text)] mb-1">
-                  Preview unavailable
-                </div>
-                <p className="text-xs text-[var(--text-muted)]">
-                  This site blocks embedding in iframes. Use the button below to open it in a
-                  new tab.
-                </p>
-              </div>
-            </div>
-          ) : isVideo ? (
-            <video
-              src={src}
-              className="w-full h-full object-cover"
-              autoPlay
-              muted
-              loop
-              playsInline
-              onLoadedData={() => setLoaded(true)}
-            />
-          ) : isImage ? (
-            <img
-              src={src}
-              alt={label || "Project preview"}
-              className="w-full h-full object-cover"
-              onLoad={() => setLoaded(true)}
-            />
-          ) : (
-            <iframe
-              src={src}
-              title={label || "Project preview"}
-              loading="lazy"
-              className="w-full h-full"
-              style={{ border: 0 }}
-              allow="clipboard-write; fullscreen; autoplay"
-              onLoad={() => setLoaded(true)}
-            />
-          )}
-        </div>
+        <div className="shine" />
+        {isVideo ? (
+          <video
+            src={src}
+            className="w-full h-[420px] object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+          />
+        ) : isImage ? (
+          <img src={src} alt="preview" className="w-full h-[420px] object-cover" />
+        ) : (
+          <iframe
+            src={src}
+            title={label || "Project preview"}
+            loading="lazy"
+            className="w-full h-[420px] bg-white"
+            referrerPolicy="no-referrer"
+            allow="clipboard-write; fullscreen; autoplay"
+          />
+        )}
       </div>
+      {label && <p className="mt-3 text-xs text-center text-white/60">{label}</p>}
     </Tilt3D>
   );
 }
@@ -156,7 +119,6 @@ function LivePreviewCard({ src, label }) {
 /* ---------- Below-preview CTA (outside the card) ---------- */
 function VisitButton({ href, label = "Visit" }) {
   const open = (e) => {
-    // rock-solid open in new tab
     if (!href) return;
     e.preventDefault();
     window.open(href, "_blank", "noopener,noreferrer");
@@ -194,11 +156,12 @@ export default function Projects() {
   return (
     <Section id="projects" title="Entrepreneurial Projects">
       <div className="grid lg:grid-cols-2 gap-10 items-start">
+        {/* LEFT: RecruiteMee description card */}
         <RecruiteMeeCard />
 
-        {/* Right column: preview card + standalone CTA below */}
+        {/* RIGHT: live preview + button below (not inside the frame) */}
         <div>
-          <LivePreviewCard src={previewSrc} label={previewLabel} />
+          <LivePreview3D src={previewSrc} label={previewLabel} />
           <VisitButton href={previewSrc} label="Visit" />
         </div>
       </div>
