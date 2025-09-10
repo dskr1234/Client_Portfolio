@@ -127,21 +127,25 @@ app.get("/api/leetcode", async (req, res) => {
 
     const json = await r.json();
 
-    // ---- denominators (total problems) with robust fallback ----
+    /* ---------- denominators (total problems) ---------- */
     const allCountsRaw = json?.data?.allQuestionsCount || [];
     const lc = (s) => (s || "").toString().trim().toLowerCase();
+
     const byDiff = allCountsRaw.reduce((acc, it) => {
       const key = lc(it?.difficulty);
       const count = Number(it?.count ?? 0);
       if (["all","easy","medium","hard"].includes(key)) acc[key] = count;
       return acc;
     }, {});
+
+    // fallback if "all" missing
     if (byDiff.all == null) {
       const e = Number(byDiff.easy   ?? 0);
       const m = Number(byDiff.medium ?? 0);
       const h = Number(byDiff.hard   ?? 0);
       byDiff.all = e + m + h;
     }
+
     const denoms = {
       all:    Number.isFinite(byDiff.all)    ? byDiff.all    : 0,
       easy:   Number.isFinite(byDiff.easy)   ? byDiff.easy   : 0,
@@ -149,7 +153,7 @@ app.get("/api/leetcode", async (req, res) => {
       hard:   Number.isFinite(byDiff.hard)   ? byDiff.hard   : 0,
     };
 
-    // ---- solved totals ----
+    /* ---------- solved totals ---------- */
     const stats = json?.data?.matchedUser?.submitStatsGlobal?.acSubmissionNum || [];
     const get = (diff) =>
       stats.find((x) => (x.difficulty || "").toLowerCase() === diff)?.count || 0;
@@ -161,28 +165,44 @@ app.get("/api/leetcode", async (req, res) => {
       hard: get("hard"),
     };
 
-    // ---- calendar -> series (UTC midnight aligned) ----
+    /* ---------- calendar ---------- */
     const calendarStr = json?.data?.matchedUser?.userCalendar?.submissionCalendar || "{}";
-    const calObj = JSON.parse(calendarStr);
+    const raw = JSON.parse(calendarStr); // { "<epochSecUTC>": count }
     const DAY = 86400;
 
+    // normalize by UTC midnight
     const norm = new Map();
-    for (const [k, v] of Object.entries(calObj)) {
+    for (const [k, v] of Object.entries(raw)) {
       const sec = Number(k) || 0;
       const cnt = Number(v) || 0;
       const dayUTC = Math.floor(sec / DAY) * DAY;
       norm.set(dayUTC, (norm.get(dayUTC) || 0) + cnt);
     }
 
-    const endLocal = new Date(); endLocal.setHours(0, 0, 0, 0);
+    // --- 72-day window (unchanged, used in text stats) ---
+    const endLocal = new Date(); endLocal.setHours(0,0,0,0);
     const series72 = [];
     for (let i = 71; i >= 0; i--) {
       const d = new Date(endLocal); d.setDate(endLocal.getDate() - i);
       const utcSec = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 1000);
       const count = norm.get(utcSec) || 0;
-      series72.push({ ts: d.getTime(), date: d.toISOString().slice(0, 10), count });
+      series72.push({ ts: d.getTime(), date: d.toISOString().slice(0,10), count });
     }
 
+    // --- build last 365 days for heatmap (week-aligned like LC) ---
+    const today = new Date(endLocal);
+    const yearBack = new Date(today); yearBack.setDate(today.getDate() - 364);
+
+    const calYear = [];
+    for (let d = new Date(yearBack); d <= today; d.setDate(d.getDate() + 1)) {
+      const utcSec = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 1000);
+      calYear.push({
+        date: d.toISOString().slice(0,10),
+        count: norm.get(utcSec) || 0,
+      });
+    }
+
+    // yearly aggregates on UTC
     const entries = Array.from(norm.entries())
       .map(([sec, v]) => ({ sec: Number(sec), v: Number(v) || 0 }))
       .sort((a, b) => a.sec - b.sec);
@@ -190,11 +210,10 @@ app.get("/api/leetcode", async (req, res) => {
     const yearSubmissions = entries.reduce((s, d) => s + d.v, 0);
     const activeDays = entries.filter((d) => d.v > 0).length;
 
+    // robust max streak this year (UTC)
     let maxStreak = 0, cur = 0;
     const startUTC = Math.floor(Date.UTC(year, 0, 1) / 1000);
-    const todayUTC = Math.floor(Date.UTC(
-      endLocal.getFullYear(), endLocal.getMonth(), endLocal.getDate()
-    ) / 1000);
+    const todayUTC = Math.floor(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) / 1000);
     for (let s = startUTC; s <= todayUTC; s += DAY) {
       if ((norm.get(s) || 0) > 0) { cur += 1; if (cur > maxStreak) maxStreak = cur; }
       else cur = 0;
@@ -209,10 +228,11 @@ app.get("/api/leetcode", async (req, res) => {
       yearSubmissions,
       activeDays,
       maxStreak,
-      series: series72,
-      bars: series72.map((x) => x.count),
+      series: series72,                // 72-day (unchanged)
+      bars: series72.map(x => x.count),
       maxDaily,
       maxDailyDate,
+      calendarYear: calYear,           // <-- NEW: 365 items for heatmap
     });
   } catch (err) {
     console.error(err);
