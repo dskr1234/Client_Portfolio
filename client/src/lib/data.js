@@ -127,6 +127,7 @@ export const education = [
     start: "2016",
     end: "2018",
     gpaText: "",
+    info:"",
     coursework: ["Specialized in Mathematics, Physics, and Chemistry — strengthened analytical and quantitative foundations for CS."],
     logo: "/Narayana.png",
   },
