@@ -17,7 +17,7 @@ function RecruiteMeeCard() {
     "S3",
     "Webhooks",
     "SaaS",
-    "Referrals",
+    "Referral System",
   ];
 
   const oneLiner =
