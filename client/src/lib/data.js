@@ -32,7 +32,7 @@ export const experience = [
       "Deployed projects on Vercel, Render, and MongoDB Atlas, ensuring scalability, CI/CD pipelines, and environment-based configurations.",
       "Delivered admin dashboards, analytics systems, referral programs, and SEO-optimized landing pages, improving client visibility and user adoption.",
     ],
-    logo: "/Exp_Com_Logo.png",
+    logo: "/free.png",
   },
   {
     role: "Associate Software Engineer",
