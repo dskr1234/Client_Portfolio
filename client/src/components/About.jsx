@@ -4,10 +4,10 @@ import Tilt3D from "./Tilt3D";
 import { motion } from "framer-motion";
 import {
   GaugeCircle, Layers, ShieldCheck, TrendingUp,
-  Briefcase, Globe2, Zap, Users, Rocket, Lightbulb // <- added Lightbulb
+  Briefcase, Globe2, Zap, Users, Rocket, Lightbulb
 } from "lucide-react";
 
-/* Word-by-word reveal */
+/* Word-by-word reveal (now allows justified paragraphs) */
 const WordByWord = ({ text, className = "" }) => {
   const words = text.split(" ");
   const container = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
@@ -21,8 +21,8 @@ const WordByWord = ({ text, className = "" }) => {
       className={className}
     >
       {words.map((w, i) => (
-        <motion.span key={i} variants={child} className="inline-block mr-1">
-          {w}
+        <motion.span key={i} variants={child} className="inline">
+          {w}{" "}
         </motion.span>
       ))}
     </motion.span>
@@ -65,15 +65,15 @@ export default function About() {
             transition={{ duration: 0.55 }}
             className="card-neo rounded-[24px] p-6 md:p-8 space-y-6"
           >
-            {/* Intro text */}
+            {/* Intro text (JUSTIFIED) */}
             <div className="space-y-4">
-              <p className="text-lg leading-relaxed text-[var(--text)]">
+              <p className="text-lg leading-relaxed text-[var(--text)] md:text-justify text-pretty hyphens-auto">
                 <WordByWord text="I’m an M.S. Computer Science student at the University of Dayton with a strong foundation in problem-solving and a passion for turning ideas into products. My journey has been a mix of industry exposure at Accenture, academic depth in algorithms and systems, and entrepreneurial drive through my startup project RecruiteMee." />
               </p>
-              <p className="text-[var(--text-muted)] leading-relaxed">
+              <p className="text-[var(--text-muted)] leading-relaxed md:text-justify text-pretty hyphens-auto">
                 <WordByWord text="What excites me most is building things that scale — whether that’s shaving seconds off backend latency, crafting seamless user experiences, or exploring how AI and LLMs can power the next generation of applications. I enjoy bridging the gap between academic theory and real-world engineering, learning continuously while shipping projects that matter." />
               </p>
-              <p className="text-[var(--text-muted)] leading-relaxed">
+              <p className="text-[var(--text-muted)] leading-relaxed md:text-justify text-pretty hyphens-auto">
                 <WordByWord text="I’m currently preparing for roles at product-based companies where I can grow as an engineer, contribute to large-scale systems, and learn from world-class teams." />
               </p>
             </div>
