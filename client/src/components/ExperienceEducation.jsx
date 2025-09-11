@@ -1,7 +1,7 @@
 import React from "react";
 import Section from "./Section";
 import Tilt3D from "./Tilt3D";
-import { experience, education, freelance } from "../lib/data";
+import { experience, education } from "../lib/data";
 import { CalendarClock, MapPin, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -34,7 +34,63 @@ function LogoBubble({ src, name, size = 56 }) {
   );
 }
 
-/** Reusable experience card (freelance + employment) */
+/**
+ * Always-on auto-scrolling container with slim, visible scrollbar.
+ * - Reverses direction at edges.
+ * - Keeps scrolling without hover.
+ */
+function AutoScrollBox({ children, className = "", speed = 0.6 }) {
+  const boxRef = React.useRef(null);
+  const rafRef = React.useRef(null);
+  const dirRef = React.useRef(1); // 1 => down, -1 => up
+
+  const step = React.useCallback(() => {
+    const el = boxRef.current;
+    if (!el) return;
+
+    const max = Math.max(0, el.scrollHeight - el.clientHeight);
+    if (max <= 0) {
+      rafRef.current = requestAnimationFrame(step);
+      return;
+    }
+
+    let next = el.scrollTop + dirRef.current * speed;
+    if (next <= 0) {
+      next = 0;
+      dirRef.current = 1;
+    } else if (next >= max) {
+      next = max;
+      dirRef.current = -1;
+    }
+    el.scrollTop = next;
+    rafRef.current = requestAnimationFrame(step);
+  }, [speed]);
+
+  React.useEffect(() => {
+    rafRef.current = requestAnimationFrame(step);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [step]);
+
+  return (
+    <div
+      ref={boxRef}
+      className={`course-scroll overflow-y-auto pr-2 border border-[var(--border)] rounded-xl bg-[var(--bg-2)] ${className}`}
+      style={{
+        WebkitOverflowScrolling: "touch",
+        scrollBehavior: "smooth",
+        overscrollBehavior: "contain",
+        scrollbarGutter: "stable both-edges",
+      }}
+      role="region"
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Reusable experience card (employment list) with auto-scrolling bullets */
 function ExperienceCard({ item, dotClass = "timeline-dot timeline-dot--exp" }) {
   return (
     <Tilt3D>
@@ -70,11 +126,13 @@ function ExperienceCard({ item, dotClass = "timeline-dot timeline-dot--exp" }) {
         </div>
 
         {!!item.bullets?.length && (
-          <ul className="list-disc pl-6 space-y-2 text-[var(--text-muted)] relative z-[1]">
-            {item.bullets.map((b, j) => (
-              <li key={j}>{b}</li>
-            ))}
-          </ul>
+          <AutoScrollBox className="h-40 md:h-44">
+            <ul className="list-disc pl-6 pr-2 py-3 space-y-2 text-[var(--text-muted)] relative z-[1]">
+              {item.bullets.map((b, j) => (
+                <li key={j}>{b}</li>
+              ))}
+            </ul>
+          </AutoScrollBox>
         )}
 
         {!!item.stack?.length && (
@@ -91,68 +149,16 @@ function ExperienceCard({ item, dotClass = "timeline-dot timeline-dot--exp" }) {
   );
 }
 
-/** Smooth auto-scroll box for coursework; starts when hovered/focused */
+/** Coursework auto-scroll box */
 function CourseScroll({ items, heightClass = "h-40 md:h-44" }) {
-  const boxRef = React.useRef(null);
-  const rafRef = React.useRef(null);
-  const dirRef = React.useRef(1);          // 1 => down, -1 => up
-  const hoveringRef = React.useRef(false);
-
-  const step = React.useCallback(() => {
-    const el = boxRef.current;
-    if (!el || !hoveringRef.current) return;
-
-    const max = Math.max(0, el.scrollHeight - el.clientHeight);
-    const speed = 0.6; // px per frame (~36px/s @60fps)
-    let next = el.scrollTop + dirRef.current * speed;
-
-    if (next <= 0) { next = 0; dirRef.current = 1; }
-    if (next >= max) { next = max; dirRef.current = -1; }
-
-    el.scrollTop = next;
-    rafRef.current = requestAnimationFrame(step);
-  }, []);
-
-  const start = React.useCallback(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    hoveringRef.current = true;
-    rafRef.current = requestAnimationFrame(step);
-  }, [step]);
-
-  const stop = React.useCallback(() => {
-    hoveringRef.current = false;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = null;
-  }, []);
-
-  React.useEffect(() => () => stop(), [stop]);
-
   return (
-    <div
-      ref={boxRef}
-      className={`course-scroll ${heightClass} overflow-y-auto pr-2 border border-[var(--border)] rounded-xl bg-[var(--bg-2)]`}
-      style={{
-        WebkitOverflowScrolling: "touch",
-        scrollBehavior: "smooth",
-        overscrollBehavior: "contain",
-        scrollbarGutter: "stable both-edges",
-      }}
-      role="region"
-      tabIndex={0}
-      aria-label="Coursework (auto-scrolls on hover)"
-      onMouseEnter={start}
-      onMouseLeave={stop}
-      onFocus={start}
-      onBlur={stop}
-      onWheel={(e) => e.stopPropagation()}
-      onTouchMove={(e) => e.stopPropagation()}
-    >
+    <AutoScrollBox className={heightClass}>
       <ul className="text-sm text-[var(--text-muted)] list-disc list-inside p-3 space-y-1">
         {items.map((c, i) => (
           <li key={i}>{c}</li>
         ))}
       </ul>
-    </div>
+    </AutoScrollBox>
   );
 }
 
@@ -160,20 +166,8 @@ export default function ExperienceEducation() {
   return (
     <Section id="experience" title="Experience & Education">
       <div className="grid lg:grid-cols-2 gap-8">
-        {/* LEFT: separate timelines */}
+        {/* LEFT: Experience timeline (merged; no separate freelance) */}
         <div className="space-y-10">
-          {/* Freelance */}
-          <div>
-            <h3 className="text-sm font-semibold tracking-wide text-[var(--text-muted)] mb-3">
-              Freelance Experience
-            </h3>
-            <div className="relative pl-7 space-y-6">
-              <div className="timeline-rail timeline-rail--freelance" />
-              <ExperienceCard item={freelance} dotClass="timeline-dot timeline-dot--freelance" />
-            </div>
-          </div>
-
-          {/* Employment */}
           <div>
             <h3 className="text-sm font-semibold tracking-wide text-[var(--text-muted)] mb-3">
               Experience
@@ -216,7 +210,9 @@ export default function ExperienceEducation() {
                       <div className="text-sm text-[var(--text-muted)] mt-1">
                         {(e.start || e.end) && (
                           <span>
-                            {e.start || ""}{e.start && e.end ? " – " : ""}{e.end || ""}
+                            {e.start || ""}
+                            {e.start && e.end ? " – " : ""}
+                            {e.end || ""}
                           </span>
                         )}
                         {e.gpaText && <span> &nbsp;→&nbsp; {e.gpaText}</span>}
@@ -224,11 +220,9 @@ export default function ExperienceEducation() {
                     </div>
                   </div>
 
-                  {e.info && (
-                    <p className="text-sm text-[var(--text-muted)] relative z-[1]">{e.info}</p>
-                  )}
+                  {e.info && <p className="text-sm text-[var(--text-muted)] relative z-[1]">{e.info}</p>}
 
-                  {/* Coursework — auto-scroll box */}
+                  {/* Coursework — auto-scroll box (always on) */}
                   {Array.isArray(e.coursework) && e.coursework.length > 0 && (
                     <div className="relative z-[1]">
                       <div className="flex items-center gap-2 text-sm text-[var(--text)] font-semibold mb-1">
