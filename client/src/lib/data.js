@@ -16,39 +16,43 @@ export const profile = {
 };
 
 // ---------- Experience ----------
-export const freelance = {
-  role: "Freelance Full-Stack Developer",
-  company: "Self-Employed",
-  period: "Remote — ongoing",
-  location: "Remote",
-  type: "Contract",
-  stack: ["JavaScript", "React", "Node.js", "REST APIs", "SQL", "Git", "Agile"],
-  bullets: [
-    "Delivered 3 enterprise web apps with an Agile team, released 2 weeks ahead of deadlines and strong stakeholder feedback.",
-    "Resolved 15+ major UI/UX issues (React, responsiveness, cross-browser), boosting user satisfaction by ~25%.",
-    "Optimized APIs & SQL queries, cutting average latency from ~800ms → ~500ms (≈30% faster).",
-    "Improved scalability by ~50% via modularized frontend, better API integrations, and streamlined CI/CD.",
-    "Partnered with cross-functional teams to ship 5+ user-facing features; QA defects down ~20%.",
-  ],
-  logo: "/Exp_Com_Logo.png",
-};
-
 export const experience = [
+  {
+    role: "Full-Stack Developer",
+    company: "Self-Employed",
+    period: "Jan 2024 – Present",
+    location: "Remote",
+    type: "Contract",
+    stack: ["MERN", "Tailwind", "Payments", "CI/CD", "AWS"],
+    bullets: [
+      "Delivered 10+ full-stack web applications for clients and personal use cases, using MERN stack (MongoDB, Express, React, Node.js) with responsive, mobile-first UI/UX.",
+      "Implemented secure authentication & authorization (JWT, role-based access) and robust APIs with data validation (Zod/Mongoose).",
+      "Integrated multiple payment gateways (Razorpay, Cashfree, PayPal, Stripe) with dynamic currency support (INR/USD).",
+      "Designed modern frontends with Tailwind CSS, custom design tokens, animations, and 3D effects to improve usability and engagement.",
+      "Deployed projects on Vercel, Render, and MongoDB Atlas, ensuring scalability, CI/CD pipelines, and environment-based configurations.",
+      "Delivered admin dashboards, analytics systems, referral programs, and SEO-optimized landing pages, improving client visibility and user adoption.",
+    ],
+    logo: "/Exp_Com_Logo.png",
+  },
   {
     role: "Associate Software Engineer",
     company: "Accenture",
     period: "Mar 2022 – Dec 2023",
-    stack: ["React", "Node.js", "SQL", "AWS"],
+    location: "Hyderabad, India",
+    type: "Full-time",
+    stack: ["JavaScript", "React", "Node.js", "REST APIs", "SQL", "Git", "Agile"],
     bullets: [
-      "Delivered 3 enterprise web apps in Agile, 2 weeks ahead of deadlines.",
-      "Improved API latency by 30% and optimized SQL queries to 500ms.",
-      "Resolved 15+ major UI/UX issues boosting satisfaction by 25%.",
+      "Delivered 3 enterprise web applications in an Agile team, released 2 weeks ahead of deadlines, earning strong stakeholder feedback.",
+      "Resolved 15+ major UI/UX issues (React, responsive design, cross-browser compatibility), improving user satisfaction by 25%.",
+      "Optimized APIs and SQL queries, reducing average latency from 800ms → 500ms (30% faster).",
+      "Enhanced scalability by 50% through modularized frontend code, improved API integrations, and streamlined CI/CD pipelines.",
+      "Partnered with cross-functional teams to deliver 5+ user-facing features, reducing QA defects by 20% and improving release quality.",
     ],
     logo: "/Exp_Com_Logo.png",
   },
 ];
 
-// ---------- Projects (unchanged, kept here for completeness) ----------
+// ---------- Projects ----------
 export const projects = [
   {
     name: "RecruiteMee — ATS Resume Optimization",
@@ -123,9 +127,7 @@ export const education = [
     start: "2016",
     end: "2018",
     gpaText: "",
-    info:
-      "Specialized in Mathematics, Physics, and Chemistry — strengthened analytical and quantitative foundations for CS.",
-    coursework: ["Mathematics", "Physics", "Chemistry"],
+    coursework: ["Specialized in Mathematics, Physics, and Chemistry — strengthened analytical and quantitative foundations for CS."],
     logo: "/Narayana.png",
   },
 ];
