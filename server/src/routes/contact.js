@@ -14,7 +14,7 @@ router.post('/', async (req, res) => {
   try {
     const data = schema.parse(req.body)
     const html = `
-      <h2>New Portfolio Message</h2>
+      <h2>Mail from portfolio contact form</h2>
       <p><strong>Name:</strong> ${data.name}</p>
       <p><strong>Email:</strong> ${data.email}</p>
       <p>${data.message.replace(/\n/g,'<br/>')}</p>
