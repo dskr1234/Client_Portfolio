@@ -57,7 +57,7 @@ export const projects = [
   {
     name: "RecruiteMee — ATS Resume Optimization",
     period: "Jan 2024 – Present",
-    tags: ["MERN", "Payments", "SaaS", "Razorpay", "Referral"],
+    tags: ["MERN", "Payments", "SaaS", "Razorpay", "Referral System"],
     link: "https://recruitemee.com",
     preview: "https://recruitemee.com",
     description:
