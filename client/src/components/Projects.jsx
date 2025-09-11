@@ -34,7 +34,7 @@ function RecruiteMeeCard() {
 
   return (
     <Tilt3D>
-      <div className="relative card-neo rounded-[24px] p-6 md:p-8 overflow-hidden">
+      <div className="relative card-neo rounded-[24px] p-6 md:p-8 overflow-hidden h-full">
         <div className="shine pointer-events-none" />
 
         {/* Header */}
@@ -80,32 +80,32 @@ function RecruiteMeeCard() {
   );
 }
 
-/* ---------- Right: reference-style live previewer (iframe/image/video) ---------- */
+/* ---------- Right: live previewer ---------- */
 function LivePreview3D({ src, label }) {
   const isVideo = typeof src === "string" && /\.(mp4|webm|ogg)$/i.test(src);
   const isImage = typeof src === "string" && /\.(png|jpe?g|gif|webp|avif)$/i.test(src);
 
   return (
-    <Tilt3D className="w-full">
-      <div className="relative card-neo rounded-[24px] overflow-hidden">
+    <Tilt3D className="w-full h-full">
+      <div className="relative card-neo rounded-[24px] overflow-hidden w-full h-full">
         <div className="shine" />
         {isVideo ? (
           <video
             src={src}
-            className="w-full h-[420px] object-cover"
+            className="w-full h-full object-cover"
             autoPlay
             muted
             loop
             playsInline
           />
         ) : isImage ? (
-          <img src={src} alt="preview" className="w-full h-[420px] object-cover" />
+          <img src={src} alt="preview" className="w-full h-full object-cover" />
         ) : (
           <iframe
             src={src}
             title={label || "Project preview"}
             loading="lazy"
-            className="w-full h-[420px] bg-white"
+            className="w-full h-[500px] md:h-[600px] bg-white"
             referrerPolicy="no-referrer"
             allow="clipboard-write; fullscreen; autoplay"
           />
@@ -116,21 +116,14 @@ function LivePreview3D({ src, label }) {
   );
 }
 
-/* ---------- Below-preview CTA (outside the card) ---------- */
+/* ---------- CTA button ---------- */
 function VisitButton({ href, label = "Visit" }) {
-  const open = (e) => {
-    if (!href) return;
-    e.preventDefault();
-    window.open(href, "_blank", "noopener,noreferrer");
-  };
-
   return (
     <div className="mt-3 flex justify-center">
       <a
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={open}
         className="
           inline-flex items-center gap-2 px-5 py-2 rounded-full
           text-sm font-medium text-[var(--text)]
@@ -155,12 +148,12 @@ export default function Projects() {
 
   return (
     <Section id="projects" title="Entrepreneurial Projects">
-      <div className="grid lg:grid-cols-2 gap-10 items-start">
-        {/* LEFT: RecruiteMee description card */}
+      <div className="grid lg:grid-cols-2 gap-10 items-stretch">
+        {/* LEFT */}
         <RecruiteMeeCard />
 
-        {/* RIGHT: live preview + button below (not inside the frame) */}
-        <div>
+        {/* RIGHT */}
+        <div className="flex flex-col h-full">
           <LivePreview3D src={previewSrc} label={previewLabel} />
           <VisitButton href={previewSrc} label="Visit" />
         </div>
