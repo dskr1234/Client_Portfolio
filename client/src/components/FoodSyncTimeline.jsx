@@ -78,16 +78,16 @@ export default function FoodSyncTimeline() {
                           isActive
                             ? "bg-violet-500 border-violet-400 shadow-[0_0_12px_rgba(167,139,250,0.9)] scale-110"
                             : isCompleted
-                            ? "bg-violet-500 border-violet-400"
+                            ? "bg-violet-600 border-violet-400"
                             : "bg-gray-400 border-gray-300 dark:bg-gray-600 dark:border-gray-500 opacity-60",
                         ].join(" ")}
                       />
 
                       {isActive && (
                         <>
-                          <span className="absolute -inset-2 rounded-full bg-violet-400/15 blur-[2px] animate-pulse" />
-                          <span className="absolute -inset-3 rounded-full border border-violet-400/30 animate-ping" />
-                          <span className="absolute -right-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-violet-300 animate-bounce" />
+                          <span className="absolute -inset-2 rounded-full bg-violet-400/20 blur-[3px] animate-pulse" />
+                          <span className="absolute -inset-3 rounded-full border border-violet-400/40 animate-ping" />
+                          <span className="absolute -right-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-violet-400 animate-bounce" />
                         </>
                       )}
                     </span>
@@ -98,9 +98,11 @@ export default function FoodSyncTimeline() {
                     <h4
                       className={[
                         "font-semibold text-lg",
-                        isActive || isCompleted
-                          ? "text-violet-300"
-                          : "text-gray-300 dark:text-gray-400",
+                        isActive
+                          ? "text-violet-700 dark:text-violet-300"
+                          : isCompleted
+                          ? "text-[var(--text)]"
+                          : "text-[var(--text-muted)]",
                       ].join(" ")}
                     >
                       {p.title}
@@ -108,9 +110,9 @@ export default function FoodSyncTimeline() {
                     <p
                       className={[
                         "text-xs",
-                        isActive || isCompleted
-                          ? "text-violet-400"
-                          : "text-gray-400 dark:text-gray-500",
+                        isActive
+                          ? "text-violet-600 dark:text-violet-400"
+                          : "text-[var(--text-muted)]",
                       ].join(" ")}
                     >
                       {p.period}
@@ -119,10 +121,10 @@ export default function FoodSyncTimeline() {
                       className={[
                         "text-sm mt-1 leading-relaxed",
                         isActive
-                          ? "text-gray-100"
+                          ? "text-[var(--text)]"
                           : isCompleted
-                          ? "text-gray-300"
-                          : "text-gray-400 dark:text-gray-500",
+                          ? "text-[var(--text-muted)]"
+                          : "text-[var(--text-muted)]/80",
                       ].join(" ")}
                     >
                       {p.desc}
