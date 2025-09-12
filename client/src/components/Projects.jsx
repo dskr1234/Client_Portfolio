@@ -122,6 +122,19 @@ export default function Projects() {
         </div>
       </div>
 
+      {/* Upcoming Projects Card */}
+      <Tilt3D>
+        <div className="relative card-neo rounded-[24px] p-6 md:p-8 overflow-hidden mb-12">
+          <div className="shine pointer-events-none" />
+          <h3 className="text-xl md:text-2xl font-bold text-center text-violet-600 dark:text-violet-300">
+            🚀 Upcoming Projects
+          </h3>
+          <p className="text-center text-[var(--text-muted)] max-w-2xl mx-auto mt-3">
+            Exploring innovative ideas in EdTech, AI-powered productivity, and global collaboration tools. These projects are in early research and prototyping stages — stay tuned for more updates!
+          </p>
+        </div>
+      </Tilt3D>
+
       {/* FoodSync Project */}
       <Tilt3D>
         <div className="relative card-neo rounded-[24px] p-6 md:p-8 overflow-hidden">
