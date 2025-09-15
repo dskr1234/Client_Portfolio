@@ -1,8 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import Section from "./Section";
 import Tilt3D from "./Tilt3D";
 import { ExternalLink } from "lucide-react";
-import FoodSyncTimeline from "./FoodSyncTimeline";
 
 function RecruiteMeeCard() {
   const title = "RecruiteMee — ATS Resume Optimization";
@@ -107,12 +106,11 @@ export default function Projects() {
   const previewSrc = "https://www.recruitemee.com/";
   const previewLabel = "RecruiteMee — Live Preview";
 
-  const srsDoc = `${window.location.origin}/docs/FoodSync_SRS.pdf`;
-  const sddDoc = `${window.location.origin}/docs/FoodSync_SDD.pdf`;
+  // 🔑 toggle state
+  const [showUpcoming, setShowUpcoming] = useState(false);
 
   return (
     <Section id="projects" title="Entrepreneurial Projects">
-      
       {/* RecruiteMee Project */}
       <div className="grid lg:grid-cols-2 gap-10 items-stretch mb-12">
         <RecruiteMeeCard />
@@ -122,54 +120,31 @@ export default function Projects() {
         </div>
       </div>
 
-      {/* Upcoming Projects Card */}
-      <Tilt3D>
-        <div className="relative card-neo rounded-[24px] p-6 md:p-8 overflow-hidden mb-12">
-          <div className="shine pointer-events-none" />
-          <h3 className="text-xl md:text-2xl font-bold text-center text-violet-600 dark:text-violet-300">
-            🚀 Upcoming Projects
-          </h3>
-          <p className="text-center text-[var(--text-muted)] max-w-2xl mx-auto mt-3">
-            Exploring innovative ideas in EdTech, AI-powered productivity, and global collaboration tools. These projects are in early research and prototyping stages — stay tuned for more updates!
-          </p>
-        </div>
-      </Tilt3D>
+      {/* Toggle Button */}
+      <div className="flex justify-center mb-8">
+        <button
+          onClick={() => setShowUpcoming(!showUpcoming)}
+          className="px-6 py-2 rounded-full text-sm font-semibold text-white bg-violet-600 hover:bg-violet-500 transition"
+        >
+          {showUpcoming ? "Hide Upcoming Projects" : "Show Upcoming Projects"}
+        </button>
+      </div>
 
-      {/* FoodSync Project */}
-      <Tilt3D>
-        <div className="relative card-neo rounded-[24px] p-6 md:p-8 overflow-hidden">
-          <div className="shine pointer-events-none" />
-
-          <h3 className="text-2xl font-bold text-center mb-4 text-[var(--text)]">
-            🌱 FoodSync — Reducing Food Waste with Tech
-          </h3>
-          <p className="text-center text-[var(--text-muted)] max-w-2xl mx-auto mb-6">
-            A MERN-based platform connecting restaurants, event organizers, and households with NGOs & volunteers
-            to donate surplus food, track logistics, and minimize wastage.
-          </p>
-
-          <FoodSyncTimeline />
-
-          <div className="flex gap-6 mt-6 justify-center">
-            <a
-              href={srsDoc}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-violet-500 hover:underline"
-            >
-              📄 View SRS Document
-            </a>
-            <a
-              href={sddDoc}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-violet-500 hover:underline"
-            >
-              📄 View SDD Document
-            </a>
+      {/* Conditional Upcoming Projects */}
+      {showUpcoming && (
+        <Tilt3D>
+          <div className="relative card-neo rounded-[24px] p-6 md:p-8 overflow-hidden mb-12">
+            <div className="shine pointer-events-none" />
+            <h3 className="text-xl md:text-2xl font-bold text-center text-violet-600 dark:text-violet-300">
+              🚀 Upcoming Projects
+            </h3>
+            <p className="text-center text-[var(--text-muted)] max-w-2xl mx-auto mt-3">
+              Exploring innovative ideas in EdTech, AI-powered productivity, and global collaboration tools. 
+              These projects are in early research and prototyping stages — stay tuned for more updates!
+            </p>
           </div>
-        </div>
-      </Tilt3D>
+        </Tilt3D>
+      )}
     </Section>
   );
 }
