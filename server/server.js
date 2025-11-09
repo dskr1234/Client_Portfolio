@@ -8,7 +8,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import Blog from "./models/Blog.js";
+import Blog from "./src/models/Blog.js";
 
 dotenv.config();
 
