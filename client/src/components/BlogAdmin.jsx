@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
-const API = "http://localhost:4000";
+const API = "https://upendraportfolio.onrender.com";
 
 export default function BlogAdmin() {
   const [token, setToken]   = useState(localStorage.getItem("blogToken") || "");
