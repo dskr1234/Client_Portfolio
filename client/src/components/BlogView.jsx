@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
-const API = "http://localhost:4000";
+const API = "https://upendraportfolio.onrender.com";
 
 export default function BlogView() {
   const { id } = useParams();
