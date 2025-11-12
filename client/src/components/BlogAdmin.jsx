@@ -1,300 +1,262 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
-const API = "https://upendraportfolio.onrender.com";
+const API = import.meta.env.VITE_API_URL;
 
 export default function BlogAdmin() {
-  const [token, setToken]   = useState(localStorage.getItem("blogToken") || "");
-  const [passcode, setPass] = useState("");
-  const [showAuth, setAuth] = useState(false);
+  const navigate = useNavigate();
+  const [passcode, setPasscode] = useState("");
+  const [blogs, setBlogs] = useState([]);
+  const [form, setForm] = useState({ title: "", contentHtml: "" });
+  const [editingId, setEditingId] = useState(null);
+  const [error, setError] = useState("");
+  const token = localStorage.getItem("blog_admin_token");
 
-  const [blogs, setBlogs]   = useState([]);
-  const [expanded, setExp]  = useState([]);
-
-  // editor modal state
-  const [showForm, setFormOpen] = useState(false);
-  const [editId, setEditId]     = useState(null);
-  const [title, setTitle]       = useState("");
-  const editorRef = useRef(null);
-  const fileRef   = useRef(null);
-
-  const headers = useMemo(() => (token ? { Authorization: `Bearer ${token}` } : {}), [token]);
-
-  async function fetchBlogs() {
-    const url = token ? `${API}/api/blogs` : `${API}/api/blogs-public`;
-    const res = await fetch(url, { headers });
+  // ✅ Fetch all blogs
+  const loadBlogs = async () => {
+    const endpoint = token ? "/api/blogs" : "/api/blogs-public";
+    const res = await fetch(`${API}${endpoint}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     const data = await res.json();
-    setBlogs(Array.isArray(data) ? data : []);
-  }
+    setBlogs(data);
+  };
 
-  useEffect(() => { fetchBlogs(); }, [token]);
+  useEffect(() => {
+    loadBlogs();
+  }, [token]);
 
-  // Auth
-  async function handleLogin() {
-    if (!passcode.trim()) return;
+  // ✅ Login
+  const handleLogin = async (e) => {
+    e.preventDefault();
     const res = await fetch(`${API}/api/blog/auth`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ passcode }),
     });
     const data = await res.json();
-    if (data?.token) {
-      localStorage.setItem("blogToken", data.token);
-      setToken(data.token);
-      setPass("");
-      setAuth(false);
-    }
-  }
-  function handleLogout() { localStorage.removeItem("blogToken"); setToken(""); }
+    if (res.ok) {
+      localStorage.setItem("blog_admin_token", data.token);
+      window.location.reload();
+    } else setError(data.error || "Login failed");
+  };
 
-  // Editor open/close
-  function openEditor(existing = null) {
-    if (!token) return setAuth(true);
-    setEditId(existing?.id || null);
-    setTitle(existing?.title || "");
-    setFormOpen(true);
-    setTimeout(() => {
-      if (editorRef.current) {
-        editorRef.current.innerHTML = existing?.contentHtml || "";
-        placeCaretAtEnd(editorRef.current);
-      }
-    }, 0);
-  }
-  function closeEditor() {
-    setFormOpen(false);
-    setEditId(null);
-    setTitle("");
-    if (editorRef.current) editorRef.current.innerHTML = "";
-  }
+  // ✅ Logout
+  const handleLogout = () => {
+    localStorage.removeItem("blog_admin_token");
+    window.location.reload();
+  };
 
-  // Editor helpers
-  function exec(cmd, value = null) { document.execCommand(cmd, false, value); editorRef.current?.focus(); }
-  function placeCaretAtEnd(el) {
-    el.focus();
-    const r = document.createRange();
-    r.selectNodeContents(el); r.collapse(false);
-    const s = window.getSelection();
-    s.removeAllRanges(); s.addRange(r);
-  }
-  function insertHtmlAtCursor(html) {
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) return;
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
-    const temp = document.createElement("div");
-    temp.innerHTML = html;
-    const frag = document.createDocumentFragment();
-    let node, last;
-    // eslint-disable-next-line no-cond-assign
-    while ((node = temp.firstChild)) last = frag.appendChild(node);
-    range.insertNode(frag);
-    if (last) {
-      range.setStartAfter(last); range.setEndAfter(last);
-      sel.removeAllRanges(); sel.addRange(range);
-    }
-  }
-  async function uploadImageAndInsert(file) {
-    if (!file || !token) return;
-    const fd = new FormData(); fd.append("image", file);
-    const res = await fetch(`${API}/api/upload`, { method: "POST", headers, body: fd });
-    const data = await res.json();
-    if (data?.url) {
-      insertHtmlAtCursor(
-        `<img src="${data.url}" alt="" style="max-width:100%;height:auto;border-radius:12px;margin:12px 0;" />`
-      );
-    }
-  }
+  // ✅ Upload Image (append to editor)
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("image", file);
 
-  // CRUD
-  async function saveBlog() {
-    const contentHtml = editorRef.current?.innerHTML || "";
-    if (!title.trim() || !contentHtml.trim()) return;
-    const method = editId ? "PUT" : "POST";
-    const url    = editId ? `${API}/api/blogs/${editId}` : `${API}/api/blogs`;
-    const res = await fetch(url, {
-      method,
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ title: title.trim(), contentHtml }),
+    const res = await fetch(`${API}/api/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
     });
-    if (res.ok) { closeEditor(); fetchBlogs(); }
-  }
-  async function deleteBlog(id) {
-    if (!token) return setAuth(true);
-    await fetch(`${API}/api/blogs/${id}`, { method: "DELETE", headers });
-    fetchBlogs();
-  }
+    const data = await res.json();
+    if (res.ok) {
+      setForm({
+        ...form,
+        contentHtml:
+          form.contentHtml + `<img src="${data.url}" alt="blog image" />`,
+      });
+    } else alert(data.error);
+  };
 
-  return (
-    <section className="min-h-[40vh] pt-6 md:pt-10 text-white">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-[var(--text)]">Blogs</h2>
-        <div className="flex gap-3">
-          {token && (
-            <button onClick={handleLogout} className="rounded-lg bg-red-500 px-4 py-2 hover:bg-red-600">
-              Logout
-            </button>
-          )}
-          <button onClick={() => openEditor()} className="rounded-lg bg-green-500 px-4 py-2 hover:bg-green-600">
-            + New Blog
+  // ✅ Add or Update Blog
+  const handleSubmitBlog = async (e) => {
+    e.preventDefault();
+    const method = editingId ? "PUT" : "POST";
+    const endpoint = editingId ? `/api/blogs/${editingId}` : "/api/blogs";
+
+    const res = await fetch(`${API}${endpoint}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(form),
+    });
+
+    if (res.ok) {
+      setForm({ title: "", contentHtml: "" });
+      setEditingId(null);
+      loadBlogs();
+    } else alert("Failed to save blog");
+  };
+
+  // ✅ Edit
+  const handleEdit = (blog) => {
+    setEditingId(blog.id);
+    setForm({ title: blog.title, contentHtml: blog.contentHtml });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // ✅ Delete
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure to delete this blog?")) return;
+    const res = await fetch(`${API}/api/blogs/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) loadBlogs();
+    else alert("Failed to delete blog");
+  };
+
+  // ✅ Login Page (Public View)
+  if (!token)
+    return (
+      <div className="text-center mt-16 px-4">
+        <h2 className="text-xl font-semibold mb-4">Admin Login</h2>
+        <form
+          onSubmit={handleLogin}
+          className="flex flex-col items-center space-y-3"
+        >
+          <input
+            className="border p-2 rounded w-64 text-center"
+            placeholder="Enter passcode"
+            value={passcode}
+            onChange={(e) => setPasscode(e.target.value)}
+          />
+          <button className="px-4 py-2 bg-blue-600 text-white rounded">
+            Login
           </button>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+        </form>
+
+        {/* ✅ Show public blogs */}
+        <div className="mt-10 max-w-4xl mx-auto text-left">
+          <h3 className="text-xl font-semibold mb-4 text-gray-800">
+            Public Blogs
+          </h3>
+          <div className="space-y-6">
+            {blogs.map((b) => (
+              <div
+                key={b.id}
+                className="border rounded-lg p-6 shadow-sm hover:shadow-md bg-white transition"
+              >
+                <h4 className="text-lg font-semibold mb-2 text-gray-900">
+                  {b.title}
+                </h4>
+
+                {/* ✅ Preview half of content */}
+                <div
+                  className="text-gray-700 prose prose-sm max-w-none overflow-hidden relative"
+                  dangerouslySetInnerHTML={{
+                    __html:
+                      b.contentHtml.slice(
+                        0,
+                        Math.min(b.contentHtml.length / 2, 600)
+                      ) + "...",
+                  }}
+                />
+
+                {/* ✅ Footer */}
+                <div className="flex justify-between items-center mt-4">
+                  <p className="text-xs text-gray-500">
+                    {new Date(b.createdAt).toLocaleString()}
+                  </p>
+                  <button
+                    onClick={() => navigate(`/blog/${b.id}`)}
+                    className="px-4 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                  >
+                    Read More →
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
+    );
 
-      {/* Empty state */}
-     {blogs.length === 0 && (
-  <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-2)] p-8 text-center">
-    <p className="text-lg text-[var(--text)] font-semibold">No blogs yet.</p>
-    <p className="text-[var(--text-muted)]">Log in and create one to get started.</p>
-  </div>
-)}
+  // ✅ Admin Panel (After Login)
+  return (
+    <div className="mt-12 space-y-6 px-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-semibold">
+          {editingId ? "Edit Blog" : "Manage Blogs"}
+        </h2>
+        <button
+          onClick={handleLogout}
+          className="bg-red-600 text-white px-3 py-1 rounded"
+        >
+          Logout
+        </button>
+      </div>
 
+      {/* ✅ Blog Form */}
+      <form onSubmit={handleSubmitBlog} className="space-y-3">
+        <input
+          type="text"
+          placeholder="Blog Title"
+          className="border p-2 w-full rounded"
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+        />
 
-      {/* List */}
-      <div className="w-full">
-        {blogs.map((b) => {
-          const isOpen = expanded.includes(b.id);
-          const date = b.createdAt ? new Date(b.createdAt).toLocaleDateString() : "";
-          return (
-            <div key={b.id} className="mb-6 rounded-[20px] bg-white/5 p-6 backdrop-blur-xl">
-              <div className="mb-2 flex items-center justify-between text-sm text-gray-300">
-                <span>📝 {b.title}</span>
-                <span>{date}</span>
+        <ReactQuill
+          theme="snow"
+          placeholder="Write your blog here..."
+          value={form.contentHtml}
+          onChange={(content) => setForm({ ...form, contentHtml: content })}
+          className="bg-white rounded"
+          style={{ height: "250px", marginBottom: "40px" }}
+        />
+
+        <input type="file" onChange={handleImageUpload} />
+        <button className="bg-green-600 text-white px-4 py-2 rounded">
+          {editingId ? "Update Blog" : "Add Blog"}
+        </button>
+      </form>
+
+      {/* ✅ Blog List (Admin Mode) */}
+      <div className="mt-8">
+        <h3 className="font-semibold text-lg mb-3">Existing Blogs:</h3>
+        <ul className="space-y-3">
+          {blogs.map((b) => (
+            <li
+              key={b.id}
+              className="border rounded p-3 flex justify-between items-center bg-white shadow-sm hover:shadow-md transition"
+            >
+              <div>
+                <h4 className="font-medium">{b.title}</h4>
+                <p className="text-sm text-gray-500">
+                  {new Date(b.createdAt).toLocaleString()}
+                </p>
               </div>
-
-              <p className="text-white">
-                {isOpen || (b.preview || "").length < 200 ? b.preview : `${b.preview}...`}
-              </p>
-
-              {(b.preview || "").length >= 200 && (
+              <div className="flex gap-2">
                 <button
-                  onClick={() =>
-                    setExp((prev) => (prev.includes(b.id) ? prev.filter((x) => x !== b.id) : [...prev, b.id]))
-                  }
-                  className="mt-2 text-sm text-blue-300"
-                >
-                  {isOpen ? "Show Less" : "Read More..."}
-                </button>
-              )}
-
-              <div className="mt-4 flex gap-3">
-                <Link
-                  to={`/blog/${b.id}`}
-                  className="rounded-lg bg-slate-500/60 px-3 py-1 hover:bg-slate-500"
+                  onClick={() => navigate(`/blog/${b.id}`)}
+                  className="px-3 py-1 bg-blue-500 text-white rounded"
                 >
                   View
-                </Link>
-                {token && (
-                  <>
-                    <button
-                      onClick={async () => {
-                        const res = await fetch(`${API}/api/blogs/${b.id}-public`);
-                        const full = await res.json();
-                        openEditor({ id: full.id, title: full.title, contentHtml: full.contentHtml });
-                      }}
-                      className="rounded-lg bg-blue-500 px-3 py-1 hover:bg-blue-600"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteBlog(b.id)}
-                      className="rounded-lg bg-red-500 px-3 py-1 hover:bg-red-600"
-                    >
-                      Delete
-                    </button>
-                  </>
-                )}
+                </button>
+                <button
+                  onClick={() => handleEdit(b)}
+                  className="px-3 py-1 bg-yellow-500 text-white rounded"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(b.id)}
+                  className="px-3 py-1 bg-red-500 text-white rounded"
+                >
+                  Delete
+                </button>
               </div>
-            </div>
-          );
-        })}
+            </li>
+          ))}
+        </ul>
       </div>
-
-      {/* Editor Modal */}
-      {showForm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md" onClick={closeEditor}>
-          <div
-            className="w-[720px] max-w-[92vw] rounded-2xl border border-white/20 bg-[#111827]/90 p-5 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="mb-3 text-lg font-bold">{editId ? "Edit Blog" : "New Blog"}</h3>
-
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter title..."
-              className="mb-3 w-full rounded-lg bg-white/10 p-2 text-white outline-none"
-            />
-
-            <div className="mb-2 flex flex-wrap gap-2">
-              <ToolbarButton onClick={() => exec("bold")} label="Bold" />
-              <ToolbarButton onClick={() => exec("italic")} label="Italic" />
-              <ToolbarButton onClick={() => exec("underline")} label="Underline" />
-              <ToolbarButton onClick={() => exec("formatBlock", "<h1>")} label="H1" />
-              <ToolbarButton onClick={() => exec("formatBlock", "<h2>")} label="H2" />
-              <ToolbarButton onClick={() => exec("insertUnorderedList")} label="• List" />
-              <ToolbarButton onClick={() => exec("insertOrderedList")} label="1. List" />
-              <ToolbarButton onClick={() => {
-                const url = prompt("Enter link URL");
-                if (url) exec("createLink", url);
-              }} label="Link" />
-              <ToolbarButton onClick={() => fileRef.current?.click()} label="Image" />
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  e.target.value = "";
-                  uploadImageAndInsert(f);
-                }}
-              />
-            </div>
-
-            <div
-              ref={editorRef}
-              contentEditable
-              className="min-h-[220px] max-h-[55vh] overflow-y-auto rounded-lg border border-white/10 bg-white/5 p-3 outline-none"
-              onClick={() => editorRef.current && editorRef.current.focus()}
-            />
-
-            <div className="mt-4 flex justify-between">
-              <button onClick={closeEditor} className="rounded-lg bg-gray-600 px-4 py-2 hover:bg-gray-700">Cancel</button>
-              <button onClick={saveBlog} className="rounded-lg bg-green-500 px-4 py-2 hover:bg-green-600">Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Login Modal */}
-      {showAuth && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-md" onClick={() => setAuth(false)}>
-          <div className="w-[360px] rounded-2xl border border-white/20 bg-[#111827]/90 p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="mb-3 text-lg font-bold">Enter Admin Passcode</h3>
-            <input
-              type="password"
-              value={passcode}
-              onChange={(e) => setPass(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-              className="mb-4 w-full rounded-lg bg-white/10 p-2 text-white outline-none"
-              placeholder="••••••"
-            />
-            <div className="flex justify-between">
-              <button onClick={() => setAuth(false)} className="rounded-lg bg-gray-600 px-4 py-2 hover:bg-gray-700">Cancel</button>
-              <button onClick={handleLogin} className="rounded-lg bg-purple-500 px-4 py-2 hover:bg-purple-600">Login</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function ToolbarButton({ onClick, label }) {
-  return (
-    <button type="button" onClick={onClick} className="rounded-md bg-white/10 px-3 py-1 text-sm hover:bg-white/20">
-      {label}
-    </button>
+    </div>
   );
 }
